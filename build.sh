@@ -2,24 +2,22 @@
 # exit on error
 set -o errexit
 
-echo "Starting build process..."
+echo "🚀 Starting build process..."
 
-# Install Python dependencies
-echo "Installing Python dependencies..."
-pip install --upgrade pip
+# Install dependencies
+echo "📦 Installing dependencies..."
 pip install -r requirements.txt
 
 # Collect static files
-echo "Collecting static files..."
-python manage.py collectstatic --noinput --clear
+echo "📁 Collecting static files..."
+python manage.py collectstatic --no-input
 
-# RENDER-SPECIFIC MIGRATION FIX
-# Handle the InconsistentMigrationHistory error for custom User model
-echo "Fixing migration dependencies for Render deployment..."
-python manage.py fix_render_migrations
+# Run migrations (simplified)
+echo "🗄️ Running migrations..."
+python manage.py migrate --no-input
 
-# Create superuser if it doesn't exist
-echo "Creating superuser..."
+# Create superuser if needed
+echo "👤 Creating superuser..."
 python manage.py create_superuser
 
-echo "Build completed successfully!"
+echo "✅ Build completed successfully!"
