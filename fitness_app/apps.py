@@ -7,8 +7,5 @@ class FitnessAppConfig(AppConfig):
     verbose_name = 'Fitness Tracker'
     
     def ready(self):
-        """Import signal handlers when app is ready"""
-        try:
-            import fitness_app.signals
-        except ImportError:
-            pass
+        """App is ready - signals removed for deployment safety"""
+        pass

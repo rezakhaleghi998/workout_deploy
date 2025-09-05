@@ -1,61 +1,53 @@
 """
 Django settings for fitness_tracker project.
-Optimized for deployment on Render/Railway with PostgreSQL.
+EMERGENCY DEPLOYMENT CONFIGURATION - BULLETPROOF SETUP
 """
 
 import os
 import sys
 from pathlib import Path
 
-# Safe import for deployment
-try:
-    import dj_database_url
-except ImportError:
-    print("WARNING: dj-database-url not installed. Install with: pip install dj-database-url")
-    dj_database_url = None
+# ============================================
+# BASE CONFIGURATION
+# ============================================
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ============ SECURITY SETTINGS ============
+# ============================================
+# SECURITY SETTINGS - PRODUCTION READY
+# ============================================
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production')
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY', 
+    'django-insecure-emergency-key-change-in-production-immediately'
+)
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-# Production security settings - FIXED for Render
+# ALLOWED HOSTS - Comprehensive for Render
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '0.0.0.0',
     '.render.com',
-    '.railway.app',
-    '.herokuapp.com',
+    '.onrender.com',
     'workout-deploy.onrender.com',
-    '*',  # Allow all hosts for debugging
 ]
 
-# Add your custom domain here
-CUSTOM_DOMAIN = os.environ.get('CUSTOM_DOMAIN')
+# Add custom domain if provided
+CUSTOM_DOMAIN = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if CUSTOM_DOMAIN:
     ALLOWED_HOSTS.append(CUSTOM_DOMAIN)
 
-# Disable strict security for initial deployment
-# Security settings for production
-# if not DEBUG:
-#     SECURE_BROWSER_XSS_FILTER = True
-#     SECURE_CONTENT_TYPE_NOSNIFF = True
-#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-#     SECURE_HSTS_SECONDS = 31536000
-#     SECURE_REDIRECT_EXEMPT = []
-#     SECURE_SSL_REDIRECT = False  # Disabled for deployment
-#     SESSION_COOKIE_SECURE = False  # Disabled for deployment
-#     CSRF_COOKIE_SECURE = False  # Disabled for deployment
+# Allow all hosts for emergency deployment
+if os.environ.get('EMERGENCY_ALLOW_ALL_HOSTS', 'False').lower() == 'true':
+    ALLOWED_HOSTS = ['*']
 
-# ============ APPLICATION DEFINITION ============
+# ============================================
+# DJANGO APPLICATIONS - BULLETPROOF CONFIG
+# ============================================
 
+# Core Django apps - NEVER CHANGE
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -65,29 +57,66 @@ DJANGO_APPS = [
     'django.contrib.staticfiles',
 ]
 
-THIRD_PARTY_APPS = [
-    'rest_framework',
-    'corsheaders',
-    'rest_framework.authtoken',
-]
+# Third-party apps - Safe imports only
+THIRD_PARTY_APPS = []
 
+# Add DRF only if available
+try:
+    import rest_framework
+    THIRD_PARTY_APPS.append('rest_framework')
+    THIRD_PARTY_APPS.append('rest_framework.authtoken')
+except ImportError:
+    print("WARNING: djangorestframework not available")
+
+# Add CORS only if available
+try:
+    import corsheaders
+    THIRD_PARTY_APPS.append('corsheaders')
+except ImportError:
+    print("WARNING: django-cors-headers not available")
+
+# Local apps - Safe configuration
 LOCAL_APPS = [
-    'fitness_app',
+    'fitness_app.apps.FitnessAppConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
+# ============================================
+# MIDDLEWARE - BULLETPROOF CONFIGURATION
+# ============================================
+
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+]
+
+# Add WhiteNoise if available
+try:
+    import whitenoise
+    MIDDLEWARE.append('whitenoise.middleware.WhiteNoiseMiddleware')
+except ImportError:
+    print("WARNING: whitenoise not available")
+
+# Add CORS middleware if available
+try:
+    import corsheaders
+    MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')
+except ImportError:
+    pass
+
+# Core middleware - ALWAYS REQUIRED
+MIDDLEWARE.extend([
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+])
+
+# ============================================
+# URL AND TEMPLATES CONFIGURATION
+# ============================================
 
 ROOT_URLCONF = 'fitness_tracker.urls'
 
@@ -109,36 +138,43 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'fitness_tracker.wsgi.application'
 
-# ============ DATABASE ============
+# ============================================
+# DATABASE CONFIGURATION - BULLETPROOF
+# ============================================
 
-# Database configuration
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-if DATABASE_URL and dj_database_url:
-    # Production: Use DATABASE_URL from Render
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
-    }
-elif DATABASE_URL and not dj_database_url:
-    # Fallback PostgreSQL configuration without dj_database_url
-    import urllib.parse as urlparse
-    url = urlparse.urlparse(DATABASE_URL)
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': url.path[1:],
-            'USER': url.username,
-            'PASSWORD': url.password,
-            'HOST': url.hostname,
-            'PORT': url.port,
-            'OPTIONS': {
-                'conn_max_age': 600,
-                'sslmode': 'require',
+if DATABASE_URL:
+    # Production database configuration
+    try:
+        import dj_database_url
+        DATABASES = {
+            'default': dj_database_url.parse(
+                DATABASE_URL, 
+                conn_max_age=600,
+                conn_health_checks=True,
+            )
+        }
+    except ImportError:
+        # Fallback manual parsing
+        import urllib.parse as urlparse
+        url = urlparse.urlparse(DATABASE_URL)
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': url.path[1:],
+                'USER': url.username,
+                'PASSWORD': url.password,
+                'HOST': url.hostname,
+                'PORT': url.port or 5432,
+                'OPTIONS': {
+                    'conn_max_age': 600,
+                    'sslmode': 'require',
+                },
             }
         }
-    }
 else:
-    # Development: Use SQLite
+    # Development/fallback database
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -146,7 +182,9 @@ else:
         }
     }
 
-# ============ AUTHENTICATION ============
+# ============================================
+# AUTHENTICATION CONFIGURATION
+# ============================================
 
 AUTH_USER_MODEL = 'fitness_app.User'
 
@@ -165,90 +203,111 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# ============ REST FRAMEWORK ============
+# ============================================
+# REST FRAMEWORK CONFIGURATION - SAFE
+# ============================================
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 50,
-    'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
-    ],
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser',
-    ],
-}
+try:
+    import rest_framework
+    REST_FRAMEWORK = {
+        'DEFAULT_AUTHENTICATION_CLASSES': [
+            'rest_framework.authentication.TokenAuthentication',
+        ],
+        'DEFAULT_PERMISSION_CLASSES': [
+            'rest_framework.permissions.IsAuthenticated',
+        ],
+        'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+        'PAGE_SIZE': 50,
+        'DEFAULT_RENDERER_CLASSES': [
+            'rest_framework.renderers.JSONRenderer',
+        ],
+        'DEFAULT_PARSER_CLASSES': [
+            'rest_framework.parsers.JSONParser',
+            'rest_framework.parsers.FormParser',
+            'rest_framework.parsers.MultiPartParser',
+        ],
+    }
+except ImportError:
+    pass
 
-# ============ CORS SETTINGS ============
+# ============================================
+# CORS CONFIGURATION - SAFE
+# ============================================
 
-# CORS settings for API access - Allow all for debugging
-CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for debugging
+try:
+    import corsheaders
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+    
+    # Add production domain
+    if CUSTOM_DOMAIN:
+        CORS_ALLOWED_ORIGINS.extend([
+            f"https://{CUSTOM_DOMAIN}",
+            f"http://{CUSTOM_DOMAIN}",
+        ])
+    
+    CORS_ALLOW_CREDENTIALS = True
+    CORS_ALLOW_HEADERS = [
+        'accept',
+        'accept-encoding',
+        'authorization',
+        'content-type',
+        'dnt',
+        'origin',
+        'user-agent',
+        'x-csrftoken',
+        'x-requested-with',
+    ]
+except ImportError:
+    pass
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "https://workout-deploy.onrender.com",
-    "http://workout-deploy.onrender.com",
-]
-
-# Add production domains
-PRODUCTION_DOMAIN = os.environ.get('PRODUCTION_DOMAIN')
-if PRODUCTION_DOMAIN:
-    CORS_ALLOWED_ORIGINS.extend([
-        f"https://{PRODUCTION_DOMAIN}",
-        f"http://{PRODUCTION_DOMAIN}",
-    ])
-
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
-
-# ============ INTERNATIONALIZATION ============
+# ============================================
+# INTERNATIONALIZATION
+# ============================================
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# ============ STATIC FILES ============
+# ============================================
+# STATIC FILES - BULLETPROOF CONFIGURATION
+# ============================================
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
-]
+] if (BASE_DIR / 'static').exists() else []
 
-# WhiteNoise configuration for serving static files
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Configure WhiteNoise if available
+try:
+    import whitenoise
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = DEBUG
+except ImportError:
+    pass
 
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ============ DEFAULT PRIMARY KEY ============
+# ============================================
+# DEFAULT PRIMARY KEY
+# ============================================
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ============ LOGGING ============
+# ============================================
+# LOGGING CONFIGURATION - PRODUCTION READY
+# ============================================
 
 LOGGING = {
     'version': 1,
@@ -266,12 +325,12 @@ LOGGING = {
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'simple',
+            'formatter': 'verbose' if DEBUG else 'simple',
         },
     },
     'root': {
         'handlers': ['console'],
-        'level': 'INFO',
+        'level': 'DEBUG' if DEBUG else 'INFO',
     },
     'loggers': {
         'django': {
@@ -281,8 +340,31 @@ LOGGING = {
         },
         'fitness_app': {
             'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': False,
         },
     },
 }
+
+# ============================================
+# EMERGENCY DEPLOYMENT SETTINGS
+# ============================================
+
+# Disable problematic features for deployment
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER = None
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
+# Cache configuration - Simple for deployment
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
+print(f"🔧 Django settings loaded successfully")
+print(f"🔧 DEBUG mode: {DEBUG}")
+print(f"🔧 Database: {'PostgreSQL' if DATABASE_URL else 'SQLite'}")
+print(f"🔧 Installed apps: {len(INSTALLED_APPS)} apps")
