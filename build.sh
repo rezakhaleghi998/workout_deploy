@@ -1,13 +1,19 @@
 #!/bin/bash
 
-# Simple build script for Render deployment
+# Build script for Render deployment
 
 echo "Starting build process..."
 
-# Install Python dependencies
+# Upgrade pip and install dependencies
 echo "Installing Python dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
+
+# Set Python path
+export PYTHONPATH="${PYTHONPATH}:/opt/render/project/src"
+
+# Make scripts executable
+chmod +x start.sh
 
 # Collect static files
 echo "Collecting static files..."

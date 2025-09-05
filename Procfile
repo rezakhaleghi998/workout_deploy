@@ -1,1 +1,1 @@
-web: gunicorn fitness_tracker.wsgi:application
+web: cd /opt/render/project/src && python -m gunicorn fitness_tracker.wsgi:application --bind 0.0.0.0:$PORT --timeout 120
