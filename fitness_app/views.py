@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate
 from django.db import transaction
 from django.db.models import Q, Sum, Avg, Count
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime, timedelta
 
 from rest_framework import status, generics, permissions
@@ -32,12 +33,17 @@ def login_view(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def register_user(request):
     """Register a new user"""
+    print(f"Registration attempt - Request data: {request.data}")
+    
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
         with transaction.atomic():
             user = serializer.save()
+            print(f"User created successfully: {user.username} (ID: {user.id})")
+            
             # Create user profile
             UserProfile.objects.get_or_create(user=user)
             # Create user ranking
@@ -45,22 +51,36 @@ def register_user(request):
             # Create auth token
             token, created = Token.objects.get_or_create(user=user)
             
+            # Test immediate authentication
+            test_auth = authenticate(username=user.username, password=request.data.get('password'))
+            print(f"Immediate auth test for {user.username}: {test_auth}")
+            
             return Response({
                 'user': UserSerializer(user).data,
                 'token': token.key,
                 'message': 'User registered successfully'
             }, status=status.HTTP_201_CREATED)
+    else:
+        print(f"Registration validation errors: {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def login_user(request):
     """Login user and return token"""
+    print(f"Login attempt - Request data: {request.data}")
+    print(f"Login attempt - Content type: {request.content_type}")
+    
     username = request.data.get('username')
     password = request.data.get('password')
     
+    print(f"Extracted - Username: {username}, Password: {'*' * len(password) if password else None}")
+    
     if username and password:
         user = authenticate(username=username, password=password)
+        print(f"Authentication result: {user}")
+        
         if user:
             token, created = Token.objects.get_or_create(user=user)
             return Response({
@@ -98,6 +118,16 @@ def user_profile(request):
         return Response(serializer.data)
     
     elif request.method == 'PUT':
+        # Handle user data updates if provided
+        user_data = request.data.get('user', {})
+        if user_data:
+            user_serializer = UserSerializer(request.user, data=user_data, partial=True)
+            if user_serializer.is_valid():
+                user_serializer.save()
+            else:
+                return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Handle profile data updates
         serializer = UserProfileSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
