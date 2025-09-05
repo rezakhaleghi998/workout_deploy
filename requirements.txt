@@ -11,3 +11,4 @@ django-extensions==3.2.3
 redis==5.0.1
 django-redis==5.4.0
 celery==5.3.4
+setuptools>=40.0.0
