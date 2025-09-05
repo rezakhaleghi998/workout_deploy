@@ -1,1 +1,1 @@
-web: gunicorn fitness_tracker.wsgi:application
+web: gunicorn fitness_tracker.wsgi:application --host 0.0.0.0 --port $PORT
