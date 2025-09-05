@@ -101,18 +101,8 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-    'corsheaders',
-    'rest_framework.authtoken',
-]
-
-LOCAL_APPS = [
-    'fitness_app',
-]
-
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -143,27 +133,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'fitness_tracker.wsgi.application'
 
-# ============ DATABASE ============
+# Database
+DATABASES = {
+    'default': dj_database_url.parse(os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3'))
+}
 
-# Database configuration
-DATABASE_URL = os.environ.get('DATABASE_URL')
-
-if DATABASE_URL:
-    # Production: Use DATABASE_URL from Render
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
-    }
-else:
-    # Development: Use SQLite
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-
-# ============ AUTHENTICATION ============
-
+# Custom user model
 AUTH_USER_MODEL = 'fitness_app.User'
 
 AUTH_PASSWORD_VALIDATORS = [
