@@ -183,7 +183,7 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     
     # HTTPS settings (uncomment when using HTTPS)
-    # SECURE_SSL_REDIRECT = True
+    # SECURE_SSL_REDIRECT = False
     # SESSION_COOKIE_SECURE = True
     # CSRF_COOKIE_SECURE = True
 
@@ -208,3 +208,4 @@ LOGGING = {
         },
     },
 }
+
