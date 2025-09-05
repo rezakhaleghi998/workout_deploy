@@ -4,8 +4,15 @@ Optimized for deployment on Render/Railway with PostgreSQL.
 """
 
 import os
-import dj_database_url
+import sys
 from pathlib import Path
+
+# Safe import for deployment
+try:
+    import dj_database_url
+except ImportError:
+    print("WARNING: dj-database-url not installed. Install with: pip install dj-database-url")
+    dj_database_url = None
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -107,10 +114,28 @@ WSGI_APPLICATION = 'fitness_tracker.wsgi.application'
 # Database configuration
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-if DATABASE_URL:
+if DATABASE_URL and dj_database_url:
     # Production: Use DATABASE_URL from Render
     DATABASES = {
         'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    }
+elif DATABASE_URL and not dj_database_url:
+    # Fallback PostgreSQL configuration without dj_database_url
+    import urllib.parse as urlparse
+    url = urlparse.urlparse(DATABASE_URL)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': url.path[1:],
+            'USER': url.username,
+            'PASSWORD': url.password,
+            'HOST': url.hostname,
+            'PORT': url.port,
+            'OPTIONS': {
+                'conn_max_age': 600,
+                'sslmode': 'require',
+            }
+        }
     }
 else:
     # Development: Use SQLite
