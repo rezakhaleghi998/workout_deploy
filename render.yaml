@@ -2,15 +2,11 @@ services:
   - type: web
     name: fitness-tracker
     runtime: python3
-    buildCommand: "./build.sh"
-    startCommand: "gunicorn fitness_tracker.wsgi --host=0.0.0.0 --port=$PORT"
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate"
+    startCommand: "gunicorn fitness_tracker.wsgi:application"
     plan: free
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.4
-      - key: BUILD_COMMAND
-        value: "./build.sh"
-      - key: DJANGO_SETTINGS_MODULE
-        value: fitness_tracker.settings
+        value: 3.11.0
       - key: DEBUG
         value: "False"
