@@ -261,7 +261,7 @@ class FitnessDatabase {
      */
     async getUserRankings(userId) {
         try {
-            const response = await this.apiRequest('/rankings/');
+            const response = await this.apiRequest('/rankings/user/');
             
             if (response.success) {
                 return response.ranking;

@@ -3109,14 +3109,6 @@
                             <span class="metric-label">Efficiency Grade:</span>
                             <span class="metric-value"><span id="efficiencyGradeWorkout">A+</span> <span class="efficiency-badge" id="efficiencyBadgeWorkout">Excellent</span></span>
                         </div>
-                        <div class="metric-row">
-                            <span class="metric-label">Calories Burned:</span>
-                            <span class="metric-value" id="workoutCaloriesBurned">1040 cal</span>
-                        </div>
-                        <div class="metric-row">
-                            <span class="metric-label">Calories per Minute:</span>
-                            <span class="metric-value" id="workoutCaloriesPerMin">17.3 cal/min</span>
-                        </div>
                     </div>
                     
                     <!-- Distance Analysis Section -->
@@ -6441,30 +6433,8 @@
             // Simulate API delay for realistic experience
             setTimeout(async () => {
                 try {
-                    // Calculate fresh results using the same method as real-time updates
-                    const caloriesPerMinute = calculateCaloriesPerMinute(workoutType, weight, intensity);
-                    const totalWorkoutCalories = Math.round(caloriesPerMinute * duration);
-                    
-                    // Ensure we have valid numbers
-                    if (isNaN(totalWorkoutCalories) || isNaN(caloriesPerMinute)) {
-                        console.error('❌ Invalid calculation results:', {
-                            workoutType, weight, intensity, duration,
-                            caloriesPerMinute, totalWorkoutCalories
-                        });
-                        alert('Error in calculation. Please check your form inputs.');
-                        return;
-                    }
-                    
-                    // Create calorie result object to match expected format
-                    const calorieResult = {
-                        calories: totalWorkoutCalories,
-                        caloriesPerMin: caloriesPerMinute.toFixed(1),
-                        range: {
-                            min: Math.round(totalWorkoutCalories * 0.85),
-                            max: Math.round(totalWorkoutCalories * 1.15)
-                        }
-                    };
-                    
+                    // Calculate fresh results every time
+                    const calorieResult = calculateCalories(age, gender, weight, height, workoutType, duration, intensity, heartRate);
                     const bmi = calculateBMI(weight, height);
                     const bmiCategory = getBMICategory(bmi);
                     const sleepAnalysis = analyzeSleep(sleepHours, age, gender);
@@ -6755,13 +6725,13 @@
                 // Store results for AI recommendations
                 lastCalculatedResults = {
                     calories: calorieResult.calories,
-                    caloriesPerMin: parseFloat(calorieResult.caloriesPerMin),
+                    caloriesPerMin: calorieResult.caloriesPerMin,
                     efficiency: efficiency
                 };
 
-                // Update UI with safe checks - Skip calorieNumber and caloriesPerMin as they're handled by real-time updates
-                // safeUpdateElement('calorieNumber', calorieResult.calories);
-                // safeUpdateElement('caloriesPerMin', calorieResult.caloriesPerMin);
+                // Update UI with safe checks
+                safeUpdateElement('calorieNumber', calorieResult.calories);
+                safeUpdateElement('caloriesPerMin', calorieResult.caloriesPerMin);
                 safeUpdateElement('calorieRange', `${calorieResult.range.min} - ${calorieResult.range.max}`);
                 safeUpdateElement('effortLevel', effortLevel);
                 safeUpdateElement('intensityAnalysis', intensity);
@@ -7630,14 +7600,9 @@
         function updateDetailedComparison(currentData, dbStats, inputs, comparisons) {
             const duration = comparisons.actualDuration;
             
-            // Ensure caloriesPerMin is a number before calling toFixed()
-            const caloriesPerMin = typeof currentData.caloriesPerMin === 'number' 
-                ? currentData.caloriesPerMin 
-                : parseFloat(currentData.caloriesPerMin) || 0;
-            
             // Update your stats
             safeUpdateElement('yourCalories', `${currentData.calories.toLocaleString()}`);
-            safeUpdateElement('yourCaloriesPerMin', `${caloriesPerMin.toFixed(1)}`);
+            safeUpdateElement('yourCaloriesPerMin', `${currentData.caloriesPerMin.toFixed(1)}`);
             safeUpdateElement('yourDuration', `${duration} min`);
             safeUpdateElement('yourHeartRateEff', `${comparisons.actualHeartRateEff}%`);
             safeUpdateElement('yourIntensityScore', `${comparisons.actualIntensityScore}`);
@@ -9721,40 +9686,21 @@
         });
 
         function checkAuthentication() {
-            const currentUser = localStorage.getItem('currentUser');
-            const token = localStorage.getItem('fitness_token');
-            
-            if (!currentUser || !token) {
+            if (!window.fitnessDatabase) {
+                console.error('❌ Database system not loaded');
+                redirectToLogin();
+                return;
+            }
+
+            const currentUser = window.fitnessDatabase.getCurrentUser();
+            if (!currentUser) {
                 console.log('🔐 No authenticated user found, redirecting to login');
                 redirectToLogin();
-                return false;
+                return;
             }
 
-            try {
-                const user = JSON.parse(currentUser);
-                console.log('✅ Authenticated user:', user.username);
-                updateUserInterface(user);
-                return true;
-            } catch (error) {
-                console.error('❌ Error parsing user data:', error);
-                redirectToLogin();
-                return false;
-            }
-        }
-
-        function updateUserInterface(currentUser) {
             console.log('✅ User authenticated:', currentUser.username);
-            
-            // Update UI elements
-            const userElements = document.querySelectorAll('.current-user');
-            userElements.forEach(element => {
-                element.textContent = currentUser.username || 'User';
-            });
-            
-            // Load and display user profile data from API
-            if (typeof loadUserProfile === 'function') {
-                loadUserProfile();
-            }
+            updateUserInterface(currentUser);
             
             // Check if profile setup is needed (after authentication)
             checkProfileCompleteness(currentUser);
@@ -9962,7 +9908,7 @@
         }
 
         function redirectToLogin() {
-            window.location.href = '/login/';
+            window.location.href = 'login.html';
         }
 
         // Save performance data after workout analysis
@@ -10031,20 +9977,27 @@
         // Initialize interface when page loads
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize database and load user if authenticated
-            const currentUser = getCurrentUserData();
             if (window.fitnessDatabase && currentUser) {
                 updateUserInterface(currentUser);
                 
-                // Don't set default values - let form fields be empty until user inputs data
-                // or profile is loaded from API
+                // Set default values for Section 1.1 if no user profile
+                if (!currentUser.profile) {
+                    safeUpdateElement('userHeight', 175);
+                    safeUpdateElement('userWeight', 70);
+                    safeUpdateElement('metabolicRate', 1850);
+                    safeUpdateElement('ageGroup', 'Adult');
+                }
                 
                 // Initialize efficiency grades
                 updateEfficiencyGrades();
             } else {
-                // Don't set default demo values - keep form empty for user input
-                console.log('⚠️ No authenticated user found, form will be empty until login');
+                // Set default demo values for Section 1.1
+                safeUpdateElement('userHeight', 175);
+                safeUpdateElement('userWeight', 70);
+                safeUpdateElement('metabolicRate', 1850);
+                safeUpdateElement('ageGroup', 'Adult');
                 
-                // Initialize BMI as empty until form is filled
+                // Set default BMI
                 const bmi = (70 / (1.75 * 1.75)).toFixed(1);
                 safeUpdateElement('bmiValue', bmi);
                 
@@ -10162,9 +10115,7 @@
         
         function getCurrentUserData() {
             const userData = localStorage.getItem('currentUser');
-            const user = userData ? JSON.parse(userData) : null;
-            console.log('📊 Getting current user data:', user ? user.username : 'No user found');
-            return user;
+            return userData ? JSON.parse(userData) : null;
         }
         
         function updateUserDisplay(user) {
@@ -10178,25 +10129,15 @@
         }
         
         function setupUserInteractions() {
-            console.log('🔧 Setting up user interactions...');
-            
             // User dropdown toggle
             const userInfo = document.getElementById('userInfo');
             const userDropdown = document.getElementById('userDropdown');
             
-            console.log('User info element:', userInfo);
-            console.log('User dropdown element:', userDropdown);
-            
             if (userInfo && userDropdown) {
                 userInfo.addEventListener('click', function(e) {
-                    console.log('👆 User info clicked!');
                     e.stopPropagation();
                     userDropdown.classList.toggle('active');
-                    console.log('Dropdown active state:', userDropdown.classList.contains('active'));
                 });
-                console.log('✅ User dropdown click handler added');
-            } else {
-                console.error('❌ User info or dropdown element not found');
             }
             
             // Close dropdown when clicking outside
@@ -10209,57 +10150,25 @@
             const viewStatsBtn = document.getElementById('viewStatsBtn');
             const exportDataBtn = document.getElementById('exportDataBtn');
             
-            console.log('Profile buttons found:');
-            console.log('- Edit Profile:', editProfileBtn);
-            console.log('- View Stats:', viewStatsBtn);
-            console.log('- Export Data:', exportDataBtn);
-            
-            if (editProfileBtn) {
-                editProfileBtn.addEventListener('click', function() {
-                    console.log('✏️ Edit Profile button clicked!');
-                    openProfileEditModal();
-                });
-                console.log('✅ Edit Profile handler added');
-            }
-            if (viewStatsBtn) {
-                viewStatsBtn.addEventListener('click', function() {
-                    console.log('📊 View Stats button clicked!');
-                    showUserStats();
-                });
-                console.log('✅ View Stats handler added');
-            }
-            if (exportDataBtn) {
-                exportDataBtn.addEventListener('click', function() {
-                    console.log('📥 Export Data button clicked!');
-                    exportUserData();
-                });
-                console.log('✅ Export Data handler added');
-            }
+            if (editProfileBtn) editProfileBtn.addEventListener('click', openProfileModal);
+            if (viewStatsBtn) viewStatsBtn.addEventListener('click', showUserStats);
+            if (exportDataBtn) exportDataBtn.addEventListener('click', exportUserData);
             
             // Modal controls - Profile View Modal
-            const closeProfileViewBtn = document.getElementById('closeProfileViewModal');
+            const closeProfileViewModal = document.getElementById('closeProfileViewModal');
             const profileViewModal = document.getElementById('profileViewModal');
             const viewProfileBtn = document.getElementById('viewProfileBtn');
             const openEditFromView = document.getElementById('openEditFromView');
             
             // Modal controls - Profile Edit Modal
-            const closeProfileEditBtn = document.getElementById('closeProfileEditModal');
+            const closeProfileEditModal = document.getElementById('closeProfileEditModal');
             const profileEditModal = document.getElementById('profileEditModal');
+            const editProfileBtn = document.getElementById('editProfileBtn');
             const editProfileForm = document.getElementById('editProfileForm');
             
             // Profile View Modal Events
-            if (viewProfileBtn) {
-                viewProfileBtn.addEventListener('click', function() {
-                    console.log('👤 View Profile button clicked!');
-                    openProfileViewModal();
-                });
-                console.log('✅ View Profile handler added');
-            } else {
-                console.error('❌ View Profile button not found');
-            }
-            if (closeProfileViewBtn) closeProfileViewBtn.addEventListener('click', function() {
-                closeProfileViewModal();
-            });
+            if (viewProfileBtn) viewProfileBtn.addEventListener('click', openProfileViewModal);
+            if (closeProfileViewModal) closeProfileViewModal.addEventListener('click', closeProfileViewModal);
             if (profileViewModal) {
                 profileViewModal.addEventListener('click', function(e) {
                     if (e.target === profileViewModal) closeProfileViewModal();
@@ -10269,9 +10178,7 @@
             
             // Profile Edit Modal Events  
             if (editProfileBtn) editProfileBtn.addEventListener('click', openProfileEditModal);
-            if (closeProfileEditBtn) closeProfileEditBtn.addEventListener('click', function() {
-                closeProfileEditModal();
-            });
+            if (closeProfileEditModal) closeProfileEditModal.addEventListener('click', closeProfileEditModal);
             if (profileEditModal) {
                 profileEditModal.addEventListener('click', function(e) {
                     if (e.target === profileEditModal) closeProfileEditModal();
@@ -10284,85 +10191,14 @@
             const guestMode = document.getElementById('guestMode');
             const guestSection = document.getElementById('guestAnalysisSection');
             
-            console.log('Analysis mode elements:');
-            console.log('- Self Mode:', selfMode);
-            console.log('- Guest Mode:', guestMode);
-            console.log('- Guest Section:', guestSection);
-            
             if (selfMode && guestMode) {
-                selfMode.addEventListener('click', function() {
-                    console.log('👤 Self Mode clicked!');
-                    setAnalysisMode('self');
-                });
-                guestMode.addEventListener('click', function() {
-                    console.log('👥 Guest Mode clicked!');
-                    setAnalysisMode('guest');
-                });
-                console.log('✅ Analysis mode handlers added');
-            } else {
-                console.error('❌ Analysis mode buttons not found');
+                selfMode.addEventListener('click', () => setAnalysisMode('self'));
+                guestMode.addEventListener('click', () => setAnalysisMode('guest'));
             }
-
-            // Add form field listeners to update wellness display
-            const ageField = document.getElementById('age');
-            const heightField = document.getElementById('height');
-            const weightField = document.getElementById('weight');
-            const genderField = document.getElementById('gender');
-            
-            if (ageField) {
-                ageField.addEventListener('input', updateWellnessDisplay);
-                ageField.addEventListener('keyup', updateWellnessDisplay);
-            }
-            if (heightField) {
-                heightField.addEventListener('input', updateWellnessDisplay);
-                heightField.addEventListener('keyup', updateWellnessDisplay);
-            }
-            if (weightField) {
-                weightField.addEventListener('input', updateWellnessDisplay);
-                weightField.addEventListener('keyup', updateWellnessDisplay);
-            }
-            if (genderField) {
-                genderField.addEventListener('change', updateWellnessDisplay);
-            }
-            
-            // Add workout field listeners for results panel updates
-            const workoutTypeField = document.getElementById('workoutType');
-            const durationField = document.getElementById('duration');
-            const intensityField = document.getElementById('intensity');
-            
-            if (workoutTypeField) {
-                workoutTypeField.addEventListener('change', updateWellnessDisplay);
-            }
-            if (durationField) {
-                durationField.addEventListener('input', updateWellnessDisplay);
-                durationField.addEventListener('keyup', updateWellnessDisplay);
-            }
-            if (intensityField) {
-                intensityField.addEventListener('change', updateWellnessDisplay);
-            }
-            
-            console.log('✅ Form field listeners added for wellness display updates');
-
-            // Trigger initial update if form has values
-            if (ageField && ageField.value || heightField && heightField.value || weightField && weightField.value) {
-                console.log('🔄 Triggering initial wellness update with existing form values');
-                updateWellnessDisplay();
-            }
-            
             
             // Profile setup wizard
             const completeSetupBtn = document.getElementById('completeSetupBtn');
             if (completeSetupBtn) completeSetupBtn.addEventListener('click', completeProfileSetup);
-
-            // Performance Index refresh button
-            const refreshUnifiedBtn = document.getElementById('refreshUnifiedIndexBtn');
-            if (refreshUnifiedBtn) {
-                refreshUnifiedBtn.addEventListener('click', function() {
-                    console.log('🔄 Refreshing Performance Index with real user data...');
-                    refreshPerformanceIndexWithUserData();
-                });
-                console.log('✅ Performance Index refresh handler added');
-            }
         }
         
         // checkFirstLogin function removed - profile check now handled in main authentication flow
@@ -10434,15 +10270,9 @@
         
         // Profile modal functions
         function openProfileViewModal() {
-            console.log('🔍 Opening profile view modal...');
             loadAndDisplayProfile();
             const modal = document.getElementById('profileViewModal');
-            if (modal) {
-                modal.classList.add('active');
-                console.log('✅ Profile view modal opened');
-            } else {
-                console.error('❌ Profile view modal not found');
-            }
+            if (modal) modal.classList.add('active');
             // Close user dropdown
             const dropdown = document.getElementById('userDropdown');
             if (dropdown) dropdown.classList.remove('active');
@@ -10454,15 +10284,9 @@
         }
 
         function openProfileEditModal() {
-            console.log('✏️ Opening profile edit modal...');
             loadProfileForEditing();
             const modal = document.getElementById('profileEditModal');
-            if (modal) {
-                modal.classList.add('active');
-                console.log('✅ Profile edit modal opened');
-            } else {
-                console.error('❌ Profile edit modal not found');
-            }
+            if (modal) modal.classList.add('active');
             // Close user dropdown
             const dropdown = document.getElementById('userDropdown');
             if (dropdown) dropdown.classList.remove('active');
@@ -10481,7 +10305,7 @@
         // Load and display profile in view modal
         async function loadAndDisplayProfile() {
             try {
-                const token = localStorage.getItem('fitness_token');
+                const token = localStorage.getItem('authToken');
                 const response = await fetch('/api/profile/', {
                     method: 'GET',
                     headers: {
@@ -10564,7 +10388,7 @@
         // Load profile data for editing
         async function loadProfileForEditing() {
             try {
-                const token = localStorage.getItem('fitness_token');
+                const token = localStorage.getItem('authToken');
                 const response = await fetch('/api/profile/', {
                     method: 'GET',
                     headers: {
@@ -10611,51 +10435,6 @@
             closeProfileViewModal();
         }
         
-        async function loginAsDemoUser() {
-            try {
-                console.log('🔄 Attempting demo login...');
-                const response = await fetch('/api/login/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCsrfToken()
-                    },
-                    body: JSON.stringify({
-                        username: 'demo',
-                        password: 'demo123'
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('✅ Demo login successful:', data);
-                    
-                    // Store the token
-                    localStorage.setItem('fitness_token', data.token);
-                    localStorage.setItem('currentUser', JSON.stringify(data.user));
-                    
-                    return true;
-                } else {
-                    console.error('❌ Demo login failed:', response.status);
-                    return false;
-                }
-            } catch (error) {
-                console.error('❌ Demo login error:', error);
-                return false;
-            }
-        }
-        
-        function getCsrfToken() {
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) {
-                const [name, value] = cookie.trim().split('=');
-                if (name === 'csrftoken') {
-                    return value;
-                }
-            }
-            return '';
-        }
-        
         async function saveProfileChanges(e) {
             e.preventDefault();
             
@@ -10674,22 +10453,7 @@
             }
             
             try {
-                const token = localStorage.getItem('fitness_token');
-                
-                console.log('🔑 Retrieved token:', token ? 'Token exists' : 'No token found');
-                
-                if (!token) {
-                    alert('Please log in first to update your profile. Click OK to log in as demo user.');
-                    // Auto-login as demo user for testing
-                    await loginAsDemoUser();
-                    // Retry getting the token
-                    const newToken = localStorage.getItem('fitness_token');
-                    if (!newToken) {
-                        alert('Failed to log in. Please try manually logging in.');
-                        return;
-                    }
-                    console.log('🔑 Auto-logged in, new token available');
-                }
+                const token = localStorage.getItem('authToken');
                 
                 // Calculate date of birth from age
                 const currentYear = new Date().getFullYear();
@@ -10710,8 +10474,6 @@
                     goals: goals
                 };
                 
-                console.log('📤 Sending profile update:', updateData);
-                
                 const response = await fetch('/api/profile/', {
                     method: 'PUT',
                     headers: {
@@ -10721,12 +10483,8 @@
                     body: JSON.stringify(updateData)
                 });
 
-                console.log('📡 Response status:', response.status);
-                console.log('📡 Response ok:', response.ok);
-
                 if (response.ok) {
                     const updatedProfile = await response.json();
-                    console.log('✅ Profile updated successfully:', updatedProfile);
                     
                     // Update the display with new profile data
                     updateUserProfileDisplay(updatedProfile);
@@ -10734,19 +10492,9 @@
                     alert('Profile updated successfully!');
                     closeProfileEditModal();
                 } else {
-                    const errorText = await response.text();
-                    console.error('❌ Profile update error response:', errorText);
-                    console.error('❌ Response status:', response.status);
-                    
-                    let errorData;
-                    try {
-                        errorData = JSON.parse(errorText);
-                    } catch (e) {
-                        errorData = { error: errorText };
-                    }
-                    
-                    console.error('❌ Parsed error data:', errorData);
-                    alert(`Failed to update profile. Error: ${response.status} - ${errorText}`);
+                    const errorData = await response.json();
+                    console.error('Profile update error:', errorData);
+                    alert('Failed to update profile. Please try again.');
                 }
             } catch (error) {
                 console.error('Error updating profile:', error);
@@ -10755,712 +10503,20 @@
         }
         
         function populateUserProfile(user) {
-            if (user && currentAnalysisMode === 'self') {
-                // Try to get profile data from user object or load from API
-                const profile = user.profile || {};
+            if (user && user.profile) {
+                const profile = user.profile;
                 
                 // Populate main form if in self-analysis mode
-                const ageField = document.getElementById('age');
-                const genderField = document.getElementById('gender');
-                const heightField = document.getElementById('height');
-                const weightField = document.getElementById('weight');
-                
-                if (ageField && profile.age) ageField.value = profile.age;
-                if (genderField && profile.gender) genderField.value = profile.gender;
-                if (heightField && profile.height) heightField.value = profile.height;
-                if (weightField && profile.weight) weightField.value = profile.weight;
-                
-                // If profile is incomplete, try to load from API
-                if (!profile.age && !profile.height && !profile.weight) {
-                    if (typeof loadUserProfile === 'function') {
-                        loadUserProfile();
-                    }
+                if (currentAnalysisMode === 'self') {
+                    if (profile.age) document.getElementById('age').value = profile.age;
+                    if (profile.gender) document.getElementById('gender').value = profile.gender;
+                    if (profile.height) document.getElementById('height').value = profile.height;
+                    if (profile.weight) document.getElementById('weight').value = profile.weight;
                 }
             }
-        }
-
-        function populateFormWithProfile(profileData) {
-            console.log('📝 Populating form with profile data:', profileData);
-            
-            const ageField = document.getElementById('age');
-            const genderField = document.getElementById('gender');
-            const heightField = document.getElementById('height');
-            const weightField = document.getElementById('weight');
-            
-            if (profileData.age && ageField) {
-                ageField.value = profileData.age;
-                console.log('✅ Age set to:', profileData.age);
-            }
-            
-            if (profileData.gender && genderField) {
-                genderField.value = profileData.gender;
-                console.log('✅ Gender set to:', profileData.gender);
-            }
-            
-            if (profileData.height && heightField) {
-                heightField.value = profileData.height;
-                console.log('✅ Height set to:', profileData.height);
-            }
-            
-            if (profileData.weight && weightField) {
-                weightField.value = profileData.weight;
-                console.log('✅ Weight set to:', profileData.weight);
-            }
-            
-            // Trigger form field events to update wellness display
-            updateWellnessDisplay();
-        }
-
-        function updateWellnessDisplay() {
-            console.log('🔄 Updating wellness display with form values');
-            
-            const age = parseInt(document.getElementById('age').value) || 0;
-            const height = parseInt(document.getElementById('height').value) || 0;
-            const weight = parseInt(document.getElementById('weight').value) || 0;
-            const gender = document.getElementById('gender').value || '';
-            
-            // Only update if we have meaningful values
-            if (age > 0 && height > 0 && weight > 0) {
-                // Calculate BMI
-                const heightInMeters = height / 100;
-                const bmi = weight / (heightInMeters * heightInMeters);
-                
-                // Calculate age group
-                let ageGroup = 'Adult';
-                if (age < 18) ageGroup = 'Teen';
-                else if (age < 30) ageGroup = 'Young Adult';
-                else if (age >= 65) ageGroup = 'Senior';
-                
-                // Calculate metabolic rate (Mifflin-St Jeor equation)
-                let bmr;
-                if (gender === 'male') {
-                    bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
-                } else if (gender === 'female') {
-                    bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
-                } else {
-                    // Default to average between male/female
-                    bmr = (10 * weight) + (6.25 * height) - (5 * age) - 78;
-                }
-                
-                // Calculate fitness level based on BMI and age
-                let fitnessLevel = 'Beginner';
-                const isHealthyBMI = bmi >= 18.5 && bmi <= 25;
-                const isYoung = age <= 35;
-                
-                if (isHealthyBMI && isYoung) fitnessLevel = 'Advanced';
-                else if (isHealthyBMI || isYoung) fitnessLevel = 'Intermediate';
-                
-                // Calculate VO2 Max estimate (basic formula)
-                let vo2Max;
-                if (gender === 'male') {
-                    vo2Max = 15.3 * (weight / height) * 100 + 10;
-                } else {
-                    vo2Max = 14.7 * (weight / height) * 100 + 8;
-                }
-                // Adjust for age
-                vo2Max = vo2Max * (1 - ((age - 25) * 0.01));
-                vo2Max = Math.max(20, Math.min(80, vo2Max)); // Reasonable bounds
-                
-                // Generate profile insight
-                let insight = '';
-                if (bmi < 18.5) {
-                    insight = 'Consider weight gain with strength training';
-                } else if (bmi <= 25) {
-                    insight = 'Excellent BMI! Maintain current lifestyle';
-                } else if (bmi <= 30) {
-                    insight = 'Focus on cardio and balanced nutrition';
-                } else {
-                    insight = 'Consult healthcare professional for guidance';
-                }
-                
-                // Update 1.1 User Profile card
-                safeUpdateElement('userHeight', height);
-                safeUpdateElement('userWeight', weight);
-                safeUpdateElement('ageGroup', ageGroup);
-                safeUpdateElement('bmiValue', bmi.toFixed(1));
-                safeUpdateElement('metabolicRate', Math.round(bmr));
-                safeUpdateElement('fitnessLevel', fitnessLevel);
-                safeUpdateElement('vo2MaxValueProfile', vo2Max.toFixed(1));
-                safeUpdateElement('profileInsight', insight);
-                
-                // Update BMI text in the display
-                const bmiCategory = getBMICategory(bmi);
-                const bmiElement = document.getElementById('bmiValue');
-                if (bmiElement && bmiElement.parentElement) {
-                    bmiElement.parentElement.innerHTML = `<span id="bmiValue">${bmi.toFixed(1)}</span> (${bmiCategory})`;
-                }
-                
-                // Update Workout Analysis card (1.2)
-                updateWorkoutAnalysisCard(age, height, weight, gender, bmr, fitnessLevel);
-                
-                // Update Sleep Analysis card (1.3)
-                updateSleepAnalysisCard(age, gender, fitnessLevel);
-                
-                // Update Progress Tracking card (1.4)
-                updateProgressTrackingCard(height, weight, bmi, fitnessLevel);
-                
-                // Update Results Panel (Section 2 & 3)
-                updateResultsPanel(age, height, weight, gender, bmr, bmi, fitnessLevel);
-                
-                console.log('✅ Wellness display updated:', {age, height, weight, gender, bmi: bmi.toFixed(1), ageGroup, bmr: Math.round(bmr), fitnessLevel, vo2Max: vo2Max.toFixed(1)});
-            } else {
-                console.log('⚠️ Incomplete form data, wellness display not updated');
-                // Clear displays when form is empty
-                clearWellnessDisplays();
-            }
-        }
-
-        function updateWorkoutAnalysisCard(age, height, weight, gender, bmr, fitnessLevel) {
-            // Calculate performance metrics based on user data
-            const intensity = fitnessLevel === 'Advanced' ? 'Very High' : fitnessLevel === 'Intermediate' ? 'Medium' : 'Low';
-            const duration = fitnessLevel === 'Advanced' ? 'Long' : fitnessLevel === 'Intermediate' ? 'Medium' : 'Short';
-            
-            // Get current workout selections for calorie calculation
-            const workoutType = document.getElementById('workoutType')?.value || 'Running';
-            const workoutDuration = parseInt(document.getElementById('duration')?.value) || 30;
-            const workoutIntensity = document.getElementById('intensity')?.value || 'Medium';
-            
-            // Calculate actual calories burned
-            const caloriesPerMinute = calculateCaloriesPerMinute(workoutType, weight, workoutIntensity);
-            const totalWorkoutCalories = Math.round(caloriesPerMinute * workoutDuration);
-            
-            // Efficiency grade based on BMI and fitness level
-            let efficiencyGrade = 'C';
-            let efficiencyBadge = 'Average';
-            if (fitnessLevel === 'Advanced') {
-                efficiencyGrade = 'A+';
-                efficiencyBadge = 'Excellent';
-            } else if (fitnessLevel === 'Intermediate') {
-                efficiencyGrade = 'B+';
-                efficiencyBadge = 'Good';
-            }
-            
-            // Calculate estimated calorie burn rate for distance metrics
-            const calorieRate = Math.round(bmr / 24 / 60 * 45); // Approximate for 45 min workout
-            
-            // Distance estimates (for running at moderate pace)
-            const avgPace = fitnessLevel === 'Advanced' ? '3:00' : fitnessLevel === 'Intermediate' ? '4:30' : '6:00';
-            const avgSpeed = fitnessLevel === 'Advanced' ? '20.0' : fitnessLevel === 'Intermediate' ? '13.3' : '10.0';
-            const distance = fitnessLevel === 'Advanced' ? '10' : fitnessLevel === 'Intermediate' ? '6' : '3';
-            const distanceCategory = fitnessLevel === 'Advanced' ? 'Long Distance' : fitnessLevel === 'Intermediate' ? 'Medium Distance' : 'Short Distance';
-            
-            const workoutDescription = fitnessLevel === 'Advanced' ? 
-                'Extremely intense workout with high calorie burn rate and great endurance building' :
-                fitnessLevel === 'Intermediate' ?
-                'Moderate intensity workout with good calorie burn and fitness improvement' :
-                'Light intensity workout perfect for building base fitness and consistency';
-            
-            // Update workout analysis elements with correct IDs
-            safeUpdateElement('intensityAnalysis', intensity);
-            safeUpdateElement('durationAnalysis', duration);
-            safeUpdateElement('efficiencyGradeWorkout', efficiencyGrade);
-            safeUpdateElement('efficiencyBadgeWorkout', efficiencyBadge);
-            
-            // Update NEW calorie elements
-            safeUpdateElement('workoutCaloriesBurned', totalWorkoutCalories + ' cal');
-            safeUpdateElement('workoutCaloriesPerMin', caloriesPerMinute.toFixed(1) + ' cal/min');
-            
-            // Update distance analysis
-            safeUpdateElement('distanceDisplay', distance);
-            safeUpdateElement('averagePace', avgPace + ' min/km');
-            safeUpdateElement('averageSpeed', avgSpeed + ' km/h');
-            safeUpdateElement('caloriesPerKm', Math.round(calorieRate / parseInt(distance)) + ' cal/km');
-            safeUpdateElement('distanceCategory', distanceCategory);
-            safeUpdateElement('workoutDescription', workoutDescription);
-        }
-
-        function updateSleepAnalysisCard(age, gender, fitnessLevel) {
-            // Sleep recommendations based on age and fitness level
-            let sleepQuality, genderComparison, populationComparison, sleepCategoryDist;
-            
-            if (age < 25) {
-                sleepQuality = 'Very Good (8.5 hours)';
-                genderComparison = '8.5h (above average)';
-                populationComparison = 'Well above average';
-                sleepCategoryDist = '25% of users get this quality';
-            } else if (age < 45) {
-                sleepQuality = 'Good (7.5 hours)';
-                genderComparison = '7.5h (good for adults)';
-                populationComparison = 'Above average';
-                sleepCategoryDist = '35% of users get this quality';
-            } else {
-                sleepQuality = 'Fair (7.0 hours)';
-                genderComparison = '7.0h (typical for age)';
-                populationComparison = 'Average';
-                sleepCategoryDist = '45% of users get this quality';
-            }
-            
-            // Adjust for gender
-            if (gender === 'female') {
-                genderComparison = genderComparison.replace('(', '(women: ');
-            } else if (gender === 'male') {
-                genderComparison = genderComparison.replace('(', '(men: ');
-            }
-            
-            // Update sleep analysis elements with correct IDs
-            safeUpdateElement('sleepQuality', sleepQuality);
-            safeUpdateElement('populationComparison', populationComparison);
-            safeUpdateElement('genderSleepComparison', genderComparison);
-            safeUpdateElement('sleepCategoryDistribution', sleepCategoryDist);
-        }
-
-        function updateProgressTrackingCard(height, weight, bmi, fitnessLevel) {
-            // Calculate progress metrics
-            const currentDate = new Date().toLocaleDateString();
-            
-            // Calculate estimated progress based on user characteristics
-            const baseCalories = Math.round(weight * 8); // Rough estimate
-            const improvement = fitnessLevel === 'Advanced' ? 0.25 : fitnessLevel === 'Intermediate' ? 0.15 : 0.08;
-            
-            // Personal best estimation
-            const personalBest = Math.round(baseCalories * 1.3);
-            const weeklyAverage = Math.round(baseCalories * 0.9);
-            
-            // Update progress tracking elements with correct IDs
-            safeUpdateElement('comparisonDate', 'Today vs ' + currentDate);
-            safeUpdateElement('prevWorkoutValue', baseCalories + ' cal');
-            safeUpdateElement('prevWorkoutChange', '+' + Math.round(improvement * 100) + '%');
-            safeUpdateElement('prevWorkoutType', fitnessLevel === 'Advanced' ? 'High Intensity Training' : 'Cardio Workout');
-            safeUpdateElement('prevWorkoutDate', 'Previous session');
-            
-            safeUpdateElement('personalBestValue', personalBest + ' cal');
-            safeUpdateElement('personalBestChange', 'New Record!');
-            safeUpdateElement('bestWorkoutType', 'Personal best achieved!');
-            safeUpdateElement('bestWorkoutDate', 'Keep pushing your limits');
-            
-            safeUpdateElement('weeklyAverageValue', weeklyAverage + ' cal');
-            safeUpdateElement('weeklyAverageChange', 'Consistent');
-        }
-
-        function updateResultsPanel(age, height, weight, gender, bmr, bmi, fitnessLevel) {
-            console.log('🔄 Updating results panel with calculated values');
-            
-            // Get current workout selections
-            const workoutType = document.getElementById('workoutType')?.value || 'Running';
-            const workoutDuration = parseInt(document.getElementById('duration')?.value) || 30;
-            const intensity = document.getElementById('intensity')?.value || 'moderate';
-            
-            // Calculate workout calories based on type, duration, weight, and intensity
-            const caloriesPerMinute = calculateCaloriesPerMinute(workoutType, weight, intensity);
-            const totalWorkoutCalories = Math.round(caloriesPerMinute * workoutDuration);
-            
-            // Calculate activity factor based on fitness level
-            let activityFactor = 1.4; // Sedentary baseline
-            if (fitnessLevel === 'Intermediate') activityFactor = 1.6;
-            else if (fitnessLevel === 'Advanced') activityFactor = 1.8;
-            
-            // Calculate daily calorie needs
-            const totalDailyCalories = Math.round(bmr * activityFactor);
-            const activityCalories = totalDailyCalories - Math.round(bmr);
-            
-            // Generate calorie range for prediction
-            const calorieRangeLow = Math.round(totalWorkoutCalories * 0.85);
-            const calorieRangeHigh = Math.round(totalWorkoutCalories * 1.15);
-            
-            // Generate effort level assessment
-            let effortLevel = 'Moderate';
-            if (intensity === 'low') effortLevel = 'Light';
-            else if (intensity === 'moderate') effortLevel = 'Moderate';
-            else if (intensity === 'high') effortLevel = 'Intense';
-            
-            // Generate mood analysis based on workout type and intensity
-            let moodAnalysis = 'Positive mood boost expected';
-            if (workoutType === 'Yoga' || workoutType === 'Pilates') {
-                moodAnalysis = 'Relaxation and stress relief';
-            } else if (intensity === 'high') {
-                moodAnalysis = 'High endorphin release expected';
-            } else if (workoutType === 'Strength Training') {
-                moodAnalysis = 'Confidence and strength building';
-            }
-            
-            // Calculate comparison values for demographic
-            const avgCaloriesForAge = calculateAverageCaloriesForAge(age, gender);
-            const yourAdvantage = Math.round(((totalWorkoutCalories - avgCaloriesForAge) / avgCaloriesForAge) * 100);
-            
-            // Update Section 2: Prediction elements
-            safeUpdateElement('calorieNumber', totalWorkoutCalories);
-            safeUpdateElement('caloriesPerMin', caloriesPerMinute.toFixed(1));
-            safeUpdateElement('effortLevel', effortLevel);
-            safeUpdateElement('moodAnalysis', moodAnalysis);
-            
-            // Update calorie range display
-            const calorieRangeElement = document.getElementById('calorieRange');
-            if (calorieRangeElement) {
-                calorieRangeElement.innerHTML = `${calorieRangeLow} - ${calorieRangeHigh} calories`;
-            }
-            
-            // Update Section 3: Wellness Plan elements
-            safeUpdateElement('totalDailyCalories', totalDailyCalories);
-            safeUpdateElement('bmrCalories', Math.round(bmr));
-            safeUpdateElement('activityCalories', activityCalories);
-            safeUpdateElement('workoutCalories', totalWorkoutCalories);
-            
-            // Update demographic comparison
-            safeUpdateElement('avgCaloriesForAge', avgCaloriesForAge);
-            const advantageElement = document.getElementById('yourAdvantage');
-            if (advantageElement) {
-                const advantageText = yourAdvantage > 0 ? `+${yourAdvantage}% above average` : `${Math.abs(yourAdvantage)}% below average`;
-                const advantageColor = yourAdvantage > 0 ? 'green' : 'orange';
-                advantageElement.innerHTML = `<span style="color: ${advantageColor}; font-weight: bold;">${advantageText}</span>`;
-            }
-            
-            // Update Section 2.4: Workout Comparison - Same workout, different intensities
-            const lowCalories = Math.round(calculateCaloriesPerMinute(workoutType, weight, 'low') * workoutDuration);
-            const highCalories = Math.round(calculateCaloriesPerMinute(workoutType, weight, 'high') * workoutDuration);
-            
-            safeUpdateElement('lowIntensityCalories', lowCalories + ' cal');
-            safeUpdateElement('lowIntensityTime', (lowCalories / workoutDuration).toFixed(1) + ' cal/min');
-            safeUpdateElement('currentWorkoutCalories', totalWorkoutCalories + ' cal');
-            safeUpdateElement('currentWorkoutTime', caloriesPerMinute.toFixed(1) + ' cal/min');
-            safeUpdateElement('highIntensityCalories', highCalories + ' cal');
-            safeUpdateElement('highIntensityTime', (highCalories / workoutDuration).toFixed(1) + ' cal/min');
-            
-            // Update alternative workouts (same duration, different types)
-            updateAlternativeWorkouts(workoutType, workoutDuration, weight, totalWorkoutCalories);
-            
-            // Update historical data simulation
-            updateHistoricalData(totalWorkoutCalories, workoutType);
-            
-            console.log('✅ Results panel updated:', {
-                workoutType, 
-                duration: workoutDuration, 
-                intensity,
-                totalCalories: totalWorkoutCalories,
-                caloriesPerMin: caloriesPerMinute.toFixed(1),
-                dailyCalories: totalDailyCalories,
-                bmr: Math.round(bmr),
-                advantage: yourAdvantage,
-                lowIntensity: lowCalories,
-                highIntensity: highCalories
-            });
-        }
-        
-        function calculateCaloriesPerMinute(workoutType, weight, intensity) {
-            // Map form intensity values to lowercase and normalize
-            const intensityMap = {
-                'Low': 'low',
-                'Medium': 'moderate', 
-                'High': 'high',
-                'low': 'low',
-                'moderate': 'moderate',
-                'high': 'high'
-            };
-            
-            const normalizedIntensity = intensityMap[intensity] || 'moderate';
-            
-            // MET values for different activities
-            const metValues = {
-                'Running': { low: 8, moderate: 11, high: 14 },
-                'Cycling': { low: 6, moderate: 8, high: 12 },
-                'Swimming': { low: 6, moderate: 8, high: 11 },
-                'Weight Training': { low: 3, moderate: 6, high: 8 },
-                'Strength Training': { low: 3, moderate: 6, high: 8 },
-                'Yoga': { low: 2, moderate: 3, high: 4 },
-                'Pilates': { low: 3, moderate: 4, high: 5 },
-                'Basketball': { low: 6, moderate: 8, high: 10 },
-                'Soccer': { low: 7, moderate: 10, high: 12 },
-                'Tennis': { low: 5, moderate: 7, high: 8 },
-                'Dancing': { low: 3, moderate: 5, high: 7 },
-                'Walking': { low: 3, moderate: 4, high: 5 },
-                'Hiking': { low: 6, moderate: 7, high: 8 },
-                'Boxing': { low: 9, moderate: 12, high: 15 },
-                'Martial Arts': { low: 8, moderate: 10, high: 12 }
-            };
-            
-            const met = metValues[workoutType] ? metValues[workoutType][normalizedIntensity] : metValues['Running'][normalizedIntensity];
-            
-            // Ensure we have valid numbers
-            if (!met || !weight || isNaN(met) || isNaN(weight)) {
-                console.error('❌ Invalid MET calculation:', {
-                    workoutType, weight, intensity, normalizedIntensity, met
-                });
-                return 0; // Return 0 instead of NaN
-            }
-            
-            // Calories per minute = MET × weight(kg) × 3.5 / 200
-            return (met * weight * 3.5) / 200;
-        }
-        
-        function calculateAverageCaloriesForAge(age, gender) {
-            // Average workout calories burned for different age groups and genders
-            let baseCalories = 300; // 30-minute moderate workout baseline
-            
-            // Adjust for gender
-            if (gender === 'male') {
-                baseCalories *= 1.2;
-            } else if (gender === 'female') {
-                baseCalories *= 0.85;
-            }
-            
-            // Adjust for age
-            if (age < 25) {
-                baseCalories *= 1.1;
-            } else if (age >= 50) {
-                baseCalories *= 0.9;
-            }
-            
-            return Math.round(baseCalories);
-        }
-        
-        function updateHistoricalData(currentCalories, workoutType) {
-            // Simulate historical data based on current workout
-            const lastWeekCalories = Math.round(currentCalories * (0.85 + Math.random() * 0.3));
-            const personalBest = Math.round(currentCalories * (1.2 + Math.random() * 0.3));
-            
-            safeUpdateElement('lastWeekCalories', lastWeekCalories);
-            safeUpdateElement('personalBest', personalBest);
-            safeUpdateElement('preferredWorkout', workoutType);
-            
-            // Update 7-day average
-            const weeklyAverage = Math.round((currentCalories + lastWeekCalories) / 2);
-            safeUpdateElement('weeklyAverage', weeklyAverage);
-            
-            // Calculate improvement percentage
-            const improvement = Math.round(((currentCalories - lastWeekCalories) / lastWeekCalories) * 100);
-            const improvementElement = document.getElementById('improvement');
-            if (improvementElement) {
-                const improvementText = improvement > 0 ? `+${improvement}%` : `${improvement}%`;
-                const improvementColor = improvement > 0 ? 'green' : 'red';
-                improvementElement.innerHTML = `<span style="color: ${improvementColor}; font-weight: bold;">${improvementText}</span>`;
-            }
-        }
-        
-        function updateAlternativeWorkouts(currentWorkoutType, duration, weight, currentCalories) {
-            // Define alternative workouts with their icons and characteristics
-            const alternatives = [
-                { name: 'Swimming', icon: '🏊', type: 'Swimming' },
-                { name: 'Cycling', icon: '🚴', type: 'Cycling' },
-                { name: 'Yoga', icon: '🧘', type: 'Yoga' },
-                { name: 'Weight Training', icon: '🏋️', type: 'Weight Training' },
-                { name: 'Boxing', icon: '🥊', type: 'Boxing' },
-                { name: 'Dancing', icon: '💃', type: 'Dancing' },
-                { name: 'Walking', icon: '🚶', type: 'Walking' },
-                { name: 'Running', icon: '🏃', type: 'Running' }
-            ];
-            
-            // Filter out the current workout type
-            const availableAlternatives = alternatives.filter(alt => alt.type !== currentWorkoutType);
-            
-            // Select 4 alternatives and calculate their calories
-            const selectedAlternatives = availableAlternatives.slice(0, 4);
-            
-            for (let i = 0; i < selectedAlternatives.length; i++) {
-                const alt = selectedAlternatives[i];
-                const altCalories = Math.round(calculateCaloriesPerMinute(alt.type, weight, 'moderate') * duration);
-                const difference = altCalories - currentCalories;
-                
-                // Update elements if they exist
-                const nameElement = document.getElementById(`altWorkout${i+1}Name`);
-                const caloriesElement = document.getElementById(`altWorkout${i+1}Calories`);
-                const vsElement = document.getElementById(`altWorkout${i+1}Vs`);
-                const iconElement = document.querySelector(`.alternative-item:nth-child(${i+1}) .alt-icon`);
-                
-                if (nameElement) nameElement.textContent = alt.name;
-                if (caloriesElement) caloriesElement.textContent = `${altCalories} cal`;
-                if (iconElement) iconElement.textContent = alt.icon;
-                if (vsElement) {
-                    const diffText = difference > 0 ? `+${difference} cal` : `${difference} cal`;
-                    const diffColor = difference > 0 ? 'green' : 'red';
-                    vsElement.innerHTML = `<span style="color: ${diffColor}; font-weight: bold;">${diffText}</span>`;
-                }
-            }
-        }
-
-        function clearWellnessDisplays() {
-            // Clear all displays when form is empty
-            const elementsToHide = [
-                'userHeight', 'userWeight', 'ageGroup', 'bmiValue', 'metabolicRate', 
-                'fitnessLevel', 'vo2MaxValueProfile', 'profileInsight'
-            ];
-            
-            elementsToHide.forEach(id => {
-                safeUpdateElement(id, '--');
-            });
-        }
-
-        function getBMICategory(bmi) {
-            if (bmi < 18.5) return 'Underweight';
-            if (bmi < 25) return 'Normal weight';
-            if (bmi < 30) return 'Overweight';
-            return 'Obese';
-        }
-
-        async function refreshPerformanceIndexWithUserData() {
-            try {
-                console.log('🔄 Loading user workout data for performance calculation...');
-                
-                // Get current user
-                const currentUser = getCurrentUserData();
-                if (!currentUser) {
-                    alert('Please log in to view your performance data');
-                    return;
-                }
-
-                // Try to load workout data from API
-                const token = localStorage.getItem('fitness_token');
-                if (!token) {
-                    alert('Authentication required. Please log in again.');
-                    return;
-                }
-
-                // Load user workouts from API
-                const response = await fetch('/api/workouts/', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Token ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (response.ok) {
-                    const workouts = await response.json();
-                    console.log('✅ Loaded user workouts:', workouts);
-                    
-                    // Calculate performance metrics based on real workout data
-                    const performanceData = calculatePerformanceFromWorkouts(workouts);
-                    
-                    // Update the panel with real data
-                    updatePerformancePanel(performanceData);
-                    
-                    alert('Performance Index updated with your real workout data!');
-                } else {
-                    console.error('Failed to load workout data');
-                    // Fall back to form-based calculation if no workout history
-                    const formBasedData = calculatePerformanceFromForm();
-                    updatePerformancePanel(formBasedData);
-                    alert('No workout history found. Performance calculated from profile data.');
-                }
-            } catch (error) {
-                console.error('Error refreshing performance data:', error);
-                alert('Error loading performance data. Please try again.');
-            }
-        }
-
-        function calculatePerformanceFromWorkouts(workouts) {
-            console.log('📊 Calculating performance from workout data...');
-            
-            if (!workouts || workouts.length === 0) {
-                return {
-                    score: 32,
-                    level: 'Beginner',
-                    consistency: 10,
-                    performance: 20,
-                    variety: 15,
-                    intensity: 25,
-                    insights: ['No workout data available. Start logging workouts to see your progress!']
-                };
-            }
-
-            // Calculate based on real workout data
-            const last30Days = workouts.filter(w => {
-                const workoutDate = new Date(w.date || w.created_at);
-                const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-                return workoutDate >= thirtyDaysAgo;
-            });
-
-            // Consistency: frequency of workouts
-            const consistency = Math.min(100, (last30Days.length / 12) * 100); // Target: 3 times per week
-
-            // Performance: average calories burned or duration
-            const avgCalories = last30Days.reduce((sum, w) => sum + (w.calories_burned || 300), 0) / last30Days.length || 300;
-            const performance = Math.min(100, (avgCalories / 500) * 100); // Target: 500 cal per workout
-
-            // Variety: number of different workout types
-            const workoutTypes = [...new Set(last30Days.map(w => w.workout_type || 'general'))];
-            const variety = Math.min(100, (workoutTypes.length / 5) * 100); // Target: 5 different types
-
-            // Intensity: based on duration and heart rate if available
-            const avgDuration = last30Days.reduce((sum, w) => sum + (w.duration || 30), 0) / last30Days.length || 30;
-            const intensity = Math.min(100, (avgDuration / 60) * 100); // Target: 60 min per workout
-
-            const overallScore = Math.round((consistency + performance + variety + intensity) / 4);
-            
-            let level = 'Beginner';
-            if (overallScore >= 70) level = 'Advanced';
-            else if (overallScore >= 40) level = 'Intermediate';
-
-            const insights = [
-                `🏃 You've completed ${last30Days.length} workouts in the last 30 days`,
-                consistency >= 60 ? '🔥 Great consistency! Keep it up!' : '📅 Try to workout more regularly for better results',
-                variety >= 40 ? '🎯 Good workout variety!' : '🔄 Try mixing different workout types for better fitness'
-            ];
-
-            return {
-                score: overallScore,
-                level: level,
-                consistency: Math.round(consistency),
-                performance: Math.round(performance),
-                variety: Math.round(variety),
-                intensity: Math.round(intensity),
-                insights: insights
-            };
-        }
-
-        function calculatePerformanceFromForm() {
-            console.log('📝 Calculating performance from form data...');
-            
-            const age = parseInt(document.getElementById('age').value) || 25;
-            const height = parseInt(document.getElementById('height').value) || 175;
-            const weight = parseInt(document.getElementById('weight').value) || 70;
-            
-            // Basic scoring based on profile completeness and health metrics
-            const bmi = weight / Math.pow(height / 100, 2);
-            const isHealthyBMI = bmi >= 18.5 && bmi <= 25;
-            
-            const baseScore = isHealthyBMI ? 60 : 40;
-            const ageBonus = age <= 30 ? 10 : age <= 50 ? 5 : 0;
-            
-            return {
-                score: baseScore + ageBonus,
-                level: baseScore >= 60 ? 'Intermediate' : 'Beginner',
-                consistency: 30,
-                performance: baseScore,
-                variety: 25,
-                intensity: 35,
-                insights: [
-                    'Profile data captured. Start logging workouts for personalized insights!',
-                    isHealthyBMI ? '💪 Healthy BMI range detected' : '⚖️ Consider consulting a fitness professional',
-                    '🎯 Complete some workouts to unlock advanced performance tracking'
-                ]
-            };
-        }
-
-        function updatePerformancePanel(data) {
-            console.log('🎨 Updating performance panel with data:', data);
-            
-            // Update main score and level
-            safeUpdateElement('unifiedPerformanceScore', data.score);
-            safeUpdateElement('performanceLevel', data.level);
-            
-            // Update component scores
-            safeUpdateElement('consistencyScore', data.consistency);
-            safeUpdateElement('performanceScore', data.performance);
-            safeUpdateElement('varietyScore', data.variety);
-            safeUpdateElement('intensityScore', data.intensity);
-            
-            // Update status indicators
-            safeUpdateElement('consistencyStatus', `🔥 ${Math.round(data.consistency/100*35)}%`);
-            safeUpdateElement('performanceStatus', `⚡ ${Math.round(data.performance/100*35)}%`);
-            safeUpdateElement('varietyStatus', `🎯 ${Math.round(data.variety/100*15)}%`);
-            safeUpdateElement('intensityStatus', `💪 ${Math.round(data.intensity/100*15)}%`);
-            
-            // Update insights
-            const insightsList = document.getElementById('insightsList');
-            if (insightsList && data.insights) {
-                insightsList.innerHTML = data.insights.map(insight => `<div>${insight}</div>`).join('');
-            }
-            
-            // Update trend based on score
-            const trendText = data.score >= 70 ? 'Excellent progress' : 
-                            data.score >= 40 ? 'Steady progress' : 
-                            'Building foundation';
-            safeUpdateElement('performanceTrend', trendText);
-            
-            console.log('✅ Performance panel updated successfully');
         }
         
         function setAnalysisMode(mode) {
-            console.log(`🔄 Switching analysis mode to: ${mode}`);
             currentAnalysisMode = mode;
             
             const selfMode = document.getElementById('selfMode');
@@ -11472,25 +10528,9 @@
                 guestMode.classList.remove('active');
                 if (guestSection) guestSection.classList.remove('active');
                 
-                console.log('👤 Self-analysis mode activated');
-                
-                // Load and populate with user's actual profile data
+                // Populate with user's profile
                 const currentUser = getCurrentUserData();
-                if (currentUser) {
-                    // Try to load profile from API first
-                    if (typeof loadUserProfile === 'function') {
-                        loadUserProfile().then(profileData => {
-                            if (profileData) {
-                                console.log('✅ Profile loaded from API:', profileData);
-                                populateFormWithProfile(profileData);
-                            } else {
-                                console.log('⚠️ No profile data available, keeping form empty for user input');
-                            }
-                        });
-                    } else {
-                        console.log('⚠️ loadUserProfile function not available');
-                    }
-                }
+                populateUserProfile(currentUser);
                 
                 // Clear guest name
                 const guestName = document.getElementById('guestName');
@@ -11500,8 +10540,6 @@
                 guestMode.classList.add('active');
                 selfMode.classList.remove('active');
                 if (guestSection) guestSection.classList.add('active');
-                
-                console.log('👥 Guest analysis mode activated');
                 
                 // Clear form for guest analysis
                 document.getElementById('age').value = '';
@@ -11718,21 +10756,46 @@
 
     <!-- Authentication Check Script -->
     <script>
-        // Authentication check function moved to main script section above
-        // to avoid duplication
+        // Check if user is authenticated when page loads
+        function checkAuthentication() {
+            const currentUser = localStorage.getItem('currentUser');
+            
+            if (!currentUser) {
+                // No authentication found, redirect to login
+                window.location.href = '/login/';
+                return false;
+            }
+            
+            try {
+                const user = JSON.parse(currentUser);
+                console.log('Authenticated user:', user.username);
+                
+                // Update UI with user info if elements exist
+                const userElements = document.querySelectorAll('.current-user');
+                userElements.forEach(element => {
+                    element.textContent = user.username || 'User';
+                });
+                
+                return true;
+            } catch (error) {
+                console.error('Error parsing user data:', error);
+                // Invalid data, redirect to login
+                localStorage.removeItem('currentUser');
+                window.location.href = '/login/';
+                return false;
+            }
+        }
 
         // Add logout functionality
         function logout() {
             localStorage.removeItem('currentUser');
-            localStorage.removeItem('fitness_token');
-            localStorage.removeItem('fitness_session');
             window.location.href = '/login/';
         }
 
         // Load user profile from API
         async function loadUserProfile() {
             try {
-                const token = localStorage.getItem('fitness_token');
+                const token = localStorage.getItem('authToken');
                 const response = await fetch('/api/profile/', {
                     method: 'GET',
                     headers: {
@@ -11775,31 +10838,19 @@
                 userStats.textContent = `${workoutCount} workouts • Member since ${joinDate}`;
             }
 
-            // Also populate main form if in self-analysis mode
-            if (currentAnalysisMode === 'self') {
-                populateMainFormFromProfile(profileData);
-            }
-        }
+            // Update profile modal with current data
+            const editAge = document.getElementById('editAge');
+            const editHeight = document.getElementById('editHeight');
+            const editWeight = document.getElementById('editWeight');
+            const editFitnessLevel = document.getElementById('editFitnessLevel');
 
-        // Populate main analysis form with profile data
-        function populateMainFormFromProfile(profileData) {
-            const ageField = document.getElementById('age');
-            const genderField = document.getElementById('gender');
-            const heightField = document.getElementById('height');
-            const weightField = document.getElementById('weight');
+            if (editAge && profileData.age) editAge.value = profileData.age;
+            if (editHeight && profileData.height) editHeight.value = profileData.height;
+            if (editWeight && profileData.weight) editWeight.value = profileData.weight;
+            if (editFitnessLevel && profileData.fitness_level) editFitnessLevel.value = profileData.fitness_level;
 
-            if (ageField && profileData.age) {
-                ageField.value = profileData.age;
-            }
-            
-            // Map fitness_level to gender if no gender specified
-            if (heightField && profileData.height) {
-                heightField.value = profileData.height;
-            }
-            
-            if (weightField && profileData.weight) {
-                weightField.value = profileData.weight;
-            }
+            // Don't show profile info automatically anymore
+            // updateProfileInfoDisplay(profileData);
         }
 
         // Update profile information in the main display

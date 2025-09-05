@@ -182,7 +182,6 @@
         <div id="successMessage" class="success-message"></div>
 
         <form id="loginForm">
-            {% csrf_token %}
             <div class="form-group">
                 <label for="username">Username or Email</label>
                 <input type="text" id="username" name="username" class="form-input" required>
@@ -203,8 +202,8 @@
         <!-- Demo Credentials for Testing -->
         <div class="demo-credentials">
             <h4>🚀 Demo Account</h4>
-            <p><strong>Username:</strong> demo</p>
-            <p><strong>Password:</strong> demo123</p>
+            <p><strong>Username:</strong> testuser</p>
+            <p><strong>Password:</strong> testpass123</p>
             <p style="font-size: 0.75rem; margin-top: 8px; color: #666;">For testing purposes - use these credentials to access the app</p>
             <p style="font-size: 0.65rem; margin-top: 4px; color: #999;">Press Ctrl+D to auto-fill these credentials</p>
         </div>
@@ -233,8 +232,6 @@
             }
 
             try {
-                console.log('Attempting login with:', { username, password: '***' });
-                
                 // Make API call to Django backend for authentication
                 const response = await fetch('/api/login/', {
                     method: 'POST',
@@ -248,16 +245,14 @@
                     })
                 });
 
-                console.log('Response status:', response.status);
                 const data = await response.json();
-                console.log('Response data:', data);
                 
                 if (response.ok && data.user) {
                     showSuccess('Login successful! Redirecting...');
                     
                     // Store user session and token
                     localStorage.setItem('currentUser', JSON.stringify(data.user));
-                    localStorage.setItem('fitness_token', data.token);
+                    localStorage.setItem('authToken', data.token);
                     
                     // Redirect to main app after short delay
                     setTimeout(() => {
