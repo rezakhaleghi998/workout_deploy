@@ -1,30 +1,30 @@
 #!/bin/bash
+set -o errexit  # Exit on error
 
-# Build script for Render deployment
+echo "==> Starting build process..."
 
-echo "Starting build process..."
+# Upgrade pip first
+echo "==> Upgrading pip..."
+python -m pip install --upgrade pip
 
-# Upgrade pip and install dependencies
-echo "Installing Python dependencies..."
-pip install --upgrade pip
+# Install dependencies
+echo "==> Installing dependencies..."
 pip install -r requirements.txt
 
-# Set Python path
-export PYTHONPATH="${PYTHONPATH}:/opt/render/project/src"
-
-# Make scripts executable
-chmod +x start.sh
+# Verify Django installation
+echo "==> Verifying Django installation..."
+python -c "import django; print(f'Django version: {django.get_version()}')"
 
 # Collect static files
-echo "Collecting static files..."
-python manage.py collectstatic --noinput --clear
+echo "==> Collecting static files..."
+python manage.py collectstatic --noinput
 
-# Apply database migrations
-echo "Applying database migrations..."
-python manage.py migrate --noinput
+# Apply migrations
+echo "==> Running migrations..."
+python manage.py migrate
 
-# Create superuser if it doesn't exist
-echo "Creating superuser..."
+# Create superuser
+echo "==> Setting up superuser..."
 python manage.py create_superuser
 
-echo "Build completed successfully!"
+echo "==> Build completed successfully!"
