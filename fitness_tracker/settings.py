@@ -4,7 +4,7 @@ Optimized for deployment on Render with PostgreSQL.
 """
 
 import os
-import dj_database_url
+from decouple import config
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -16,18 +16,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-# Production security settings - FIXED for Render
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '0.0.0.0',
-    '.render.com',
-    '.railway.app',
-    '.herokuapp.com',
-    'workout-deploy.onrender.com',
-    '*',  # Allow all hosts for debugging
+    '.onrender.com',
+    config('RENDER_EXTERNAL_HOSTNAME', default='')
 ]
 
 # Add your custom domain here
@@ -59,7 +54,6 @@ LOCAL_APPS = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -93,12 +87,10 @@ WSGI_APPLICATION = 'fitness_tracker.wsgi.application'
 # ============ DATABASE ============
 
 # Database configuration
-DATABASE_URL = os.environ.get('DATABASE_URL')
-
-if DATABASE_URL:
-    # Production: Use DATABASE_URL from Render
+if 'DATABASE_URL' in os.environ:
+    import dj_database_url
     DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
     }
 else:
     # Development: Use SQLite
@@ -194,13 +186,7 @@ USE_TZ = True
 # ============ STATIC FILES ============
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-
-# WhiteNoise configuration for serving static files
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files

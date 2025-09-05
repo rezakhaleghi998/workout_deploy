@@ -1,6 +1,6 @@
-#!/bin/bash
-
-# Simple build script for Render deployment
+#!/usr/bin/env bash
+# exit on error
+set -o errexit
 
 echo "Starting build process..."
 
