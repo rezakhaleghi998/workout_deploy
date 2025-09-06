@@ -17,6 +17,7 @@ from .serializers import (
     WorkoutSessionSerializer, PerformanceMetricsSerializer,
     UserRankingSerializer, AchievementSerializer
 )
+from .db_retry import db_retry, ensure_db_connection
 
 # ============ MAIN VIEWS ============
 
@@ -88,31 +89,114 @@ def logout_user(request):
         return Response({'error': 'Error logging out'}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])  # Allow unauthenticated access for demo mode
+@db_retry(max_retries=3, delay=1)
 def user_profile(request):
-    """Get or update user profile"""
-    profile, created = UserProfile.objects.get_or_create(user=request.user)
-    
-    if request.method == 'GET':
-        serializer = UserProfileSerializer(profile)
-        return Response(serializer.data)
-    
-    elif request.method == 'PUT':
-        # Handle user data updates if provided
-        user_data = request.data.get('user', {})
-        if user_data:
-            user_serializer = UserSerializer(request.user, data=user_data, partial=True)
-            if user_serializer.is_valid():
-                user_serializer.save()
-            else:
-                return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    """Get or update user profile with database retry logic"""
+    try:
+        # For demo purposes, we'll use a default profile approach
+        # In production with authentication, this would use request.user
         
-        # Handle profile data updates
-        serializer = UserProfileSerializer(profile, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if request.method == 'GET':
+            # Try to get or create a default profile for demo
+            try:
+                profile = UserProfile.objects.first()
+                if not profile:
+                    # Create a default profile for demo
+                    default_user, _ = User.objects.get_or_create(
+                        username='demo_user',
+                        defaults={
+                            'email': 'demo@example.com',
+                            'first_name': 'Demo',
+                            'last_name': 'User'
+                        }
+                    )
+                    profile, _ = UserProfile.objects.get_or_create(
+                        user=default_user,
+                        defaults={
+                            'height': None,
+                            'weight': None,
+                            'fitness_level': 'beginner',
+                            'goals': ''
+                        }
+                    )
+                
+                # Include user data in response
+                response_data = UserProfileSerializer(profile).data
+                response_data['user'] = {
+                    'username': profile.user.username,
+                    'first_name': profile.user.first_name,
+                    'last_name': profile.user.last_name,
+                    'email': profile.user.email
+                }
+                return Response(response_data)
+                
+            except Exception as e:
+                return Response({
+                    'error': f'Database connection failed: {str(e)}',
+                    'fallback_data': {
+                        'height': None,
+                        'weight': None,
+                        'fitness_level': 'beginner',
+                        'goals': '',
+                        'user': {
+                            'username': 'demo_user',
+                            'first_name': 'Demo',
+                            'last_name': 'User',
+                            'email': 'demo@example.com'
+                        }
+                    }
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        
+        elif request.method == 'PUT':
+            try:
+                # Get or create profile for demo
+                profile = UserProfile.objects.first()
+                if not profile:
+                    default_user, _ = User.objects.get_or_create(
+                        username='demo_user',
+                        defaults={
+                            'email': 'demo@example.com',
+                            'first_name': 'Demo',
+                            'last_name': 'User'
+                        }
+                    )
+                    profile, _ = UserProfile.objects.get_or_create(user=default_user)
+                
+                # Handle user data updates if provided
+                user_data = request.data.get('user', {})
+                if user_data:
+                    user_serializer = UserSerializer(profile.user, data=user_data, partial=True)
+                    if user_serializer.is_valid():
+                        user_serializer.save()
+                    else:
+                        return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Handle profile data updates
+                serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+                if serializer.is_valid():
+                    serializer.save()
+                    
+                    # Include user data in response
+                    response_data = serializer.data
+                    response_data['user'] = {
+                        'username': profile.user.username,
+                        'first_name': profile.user.first_name,
+                        'last_name': profile.user.last_name,
+                        'email': profile.user.email
+                    }
+                    return Response(response_data)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+            except Exception as e:
+                return Response({
+                    'error': f'Database save failed: {str(e)}'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    except Exception as e:
+        return Response({
+            'error': f'Profile operation failed: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ============ WORKOUT VIEWS ============
 

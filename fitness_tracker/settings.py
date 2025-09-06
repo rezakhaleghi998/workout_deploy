@@ -86,18 +86,31 @@ WSGI_APPLICATION = 'fitness_tracker.wsgi.application'
 
 # ============ DATABASE ============
 
-# Database configuration
+# Database configuration with connection retries
 if 'DATABASE_URL' in os.environ:
     import dj_database_url
     DATABASES = {
         'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
     }
+    # Add PostgreSQL specific settings for production
+    DATABASES['default'].update({
+        'CONN_MAX_AGE': 60,  # Keep connections alive for 60 seconds
+        'OPTIONS': {
+            'MAX_CONNS': 20,
+            'connect_timeout': 10,
+            'sslmode': 'require',  # Required for Render PostgreSQL
+        },
+        # Connection retry settings
+        'RETRY_TIMES': 5,
+        'RETRY_DELAY': 2,
+    })
 else:
     # Development: Use SQLite
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            'CONN_MAX_AGE': 0,  # No connection pooling for SQLite
         }
     }
 

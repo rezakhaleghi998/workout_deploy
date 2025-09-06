@@ -10599,8 +10599,8 @@
         function openProfileEditModal() {
             console.log('✏️ Opening profile edit modal...');
             
-            // Check if in production (read-only mode)
-            if (isProductionEnvironment()) {
+            // Check if in demo mode (read-only mode)
+            if (isDemoEnvironment()) {
                 showErrorMessage('❌ Profile editing is disabled in demo mode');
                 return;
             }
@@ -10634,7 +10634,7 @@
         
         // Apply environment-based styling to forms
         function applyEnvironmentBasedStyling() {
-            const isProduction = isProductionEnvironment();
+            const isDemoMode = isDemoEnvironment();
             
             // Get all form inputs in profile edit modal
             const editModal = document.getElementById('profileEditModal');
@@ -10643,8 +10643,8 @@
             const inputs = editModal.querySelectorAll('input, select, textarea, button[type="submit"]');
             
             inputs.forEach(input => {
-                if (isProduction) {
-                    // Production mode: disable inputs
+                if (isDemoMode) {
+                    // Demo mode: disable inputs
                     input.disabled = true;
                     input.style.opacity = '0.6';
                     input.style.cursor = 'not-allowed';
@@ -10653,7 +10653,7 @@
                         input.style.background = '#6c757d';
                     }
                 } else {
-                    // Local mode: enable inputs
+                    // Normal mode: enable inputs
                     input.disabled = false;
                     input.style.opacity = '1';
                     input.style.cursor = '';
@@ -10664,8 +10664,8 @@
                 }
             });
             
-            // Add demo notice for production
-            if (isProduction) {
+            // Add demo notice for demo mode
+            if (isDemoMode) {
                 let demoNotice = editModal.querySelector('.demo-notice');
                 if (!demoNotice) {
                     demoNotice = document.createElement('div');
@@ -10692,11 +10692,65 @@
 
         // Load and display profile in view modal
         // Load and display profile in view modal
-        function loadAndDisplayProfile() {
+        async function loadAndDisplayProfile() {
             console.log('🔍 Loading and displaying profile...');
             
             try {
-                const currentUser = getCurrentUserData();
+                // Try to load from API first, then fallback to localStorage
+                let currentUser = null;
+                
+                try {
+                    console.log('🌐 Attempting to load profile from database...');
+                    
+                    const response = await fetch('/api/profile/', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        credentials: 'include'
+                    });
+                    
+                    if (response.ok) {
+                        const profileData = await response.json();
+                        console.log('✅ Profile loaded from database:', profileData);
+                        
+                        // Convert API response to localStorage format for compatibility
+                        currentUser = {
+                            id: profileData.id || 'user_' + Date.now(),
+                            username: profileData.user?.username || 'User',
+                            firstName: profileData.user?.first_name || '',
+                            lastName: profileData.user?.last_name || '',
+                            email: profileData.user?.email || '',
+                            createdAt: profileData.created_at || new Date().toISOString(),
+                            totalWorkouts: 0, // Can be updated from workout API later
+                            profile: {
+                                age: profileData.date_of_birth ? 
+                                    new Date().getFullYear() - new Date(profileData.date_of_birth).getFullYear() : null,
+                                height: profileData.height || null,
+                                weight: profileData.weight || null,
+                                fitnessLevel: profileData.fitness_level || 'beginner',
+                                goals: profileData.goals || '',
+                                isComplete: !!(profileData.height && profileData.weight),
+                                lastUpdated: profileData.updated_at || new Date().toISOString(),
+                                syncedWithDatabase: true
+                            }
+                        };
+                        
+                        // Update localStorage with synced data
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                        
+                    } else {
+                        console.warn('⚠️ API request failed:', response.status);
+                        throw new Error(`API Error: ${response.status}`);
+                    }
+                    
+                } catch (apiError) {
+                    console.warn('⚠️ Database load failed, falling back to localStorage:', apiError.message);
+                    // Fallback to localStorage
+                    currentUser = getCurrentUserData();
+                }
+                
                 if (currentUser && currentUser.profile) {
                     console.log('✅ User profile found, displaying...');
                     displayProfileInViewModal(currentUser);
@@ -10842,17 +10896,16 @@
             console.log('✅ Edit form populated successfully');
         }
 
-        // Environment Detection
-        function isProductionEnvironment() {
-            return window.location.hostname.includes('render') || 
-                   window.location.hostname.includes('onrender.com') ||
-                   window.location.hostname !== '127.0.0.1' && 
-                   window.location.hostname !== 'localhost';
+        // Environment Detection - Only show demo for specific demo URLs
+        function isDemoEnvironment() {
+            // Only show demo mode for specific demo URLs, not production
+            return window.location.hostname.includes('demo') || 
+                   window.location.search.includes('demo=true');
         }
 
         // Show environment notification
         function showEnvironmentNotification() {
-            if (isProductionEnvironment()) {
+            if (isDemoEnvironment()) {
                 const notification = document.createElement('div');
                 notification.id = 'env-notification';
                 notification.style.cssText = `
@@ -10884,18 +10937,18 @@
             closeProfileViewModal();
         }
         
-        function saveProfileChanges(e) {
+        async function saveProfileChanges(e) {
             e.preventDefault();
             console.log('💾 Attempting to save profile changes...');
             
-            // Check if in production (read-only mode)
-            if (isProductionEnvironment()) {
-                console.log('🚫 Production environment detected');
+            // Check if in demo mode (read-only mode)
+            if (isDemoEnvironment()) {
+                console.log('🚫 Demo environment detected');
                 showErrorMessage('❌ Profile cannot be modified in demo mode');
                 return;
             }
             
-            console.log('✅ Local environment detected, proceeding with save...');
+            console.log('✅ Normal environment detected, proceeding with save...');
             
             // Show loading state
             const saveButton = document.querySelector('#editProfileForm button[type="submit"]');
@@ -10916,53 +10969,113 @@
                     return;
                 }
                 
-                // Get current user data
-                const currentUser = getCurrentUserData();
-                console.log('👤 Current user data:', currentUser);
-                if (!currentUser) {
-                    // Create a default user if none exists
-                    const defaultUser = {
-                        id: 'user_' + Date.now(),
-                        username: formData.firstName || 'User',
-                        firstName: formData.firstName || 'First',
-                        lastName: formData.lastName || 'Last',
-                        email: formData.email || 'user@example.com',
-                        createdAt: new Date().toISOString(),
-                        profile: {}
+                // Try to save to database first, fallback to localStorage
+                try {
+                    console.log('🌐 Attempting to save profile to database...');
+                    
+                    // Prepare data for API (matching Django model fields)
+                    const profileData = {
+                        height: parseFloat(formData.height) || null,
+                        weight: parseFloat(formData.weight) || null,
+                        fitness_level: formData.fitnessLevel || 'beginner',
+                        goals: formData.goals || '',
+                        // Calculate date_of_birth from age if provided
+                        date_of_birth: formData.age ? 
+                            new Date(new Date().getFullYear() - parseInt(formData.age), 0, 1).toISOString().split('T')[0] : 
+                            null
                     };
-                    console.log('🆕 Creating default user:', defaultUser);
-                    localStorage.setItem('currentUser', JSON.stringify(defaultUser));
-                    currentUser = defaultUser;
-                }
-                
-                // Update user data structure
-                const updatedUser = {
-                    ...currentUser,
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    email: formData.email,
-                    profile: {
-                        ...currentUser.profile,
-                        age: parseInt(formData.age),
-                        height: parseInt(formData.height),
-                        weight: parseInt(formData.weight),
-                        fitnessLevel: formData.fitnessLevel,
-                        goals: formData.goals,
-                        isComplete: true,
-                        lastUpdated: new Date().toISOString()
+
+                    // User data for user model
+                    const userData = {
+                        first_name: formData.firstName || '',
+                        last_name: formData.lastName || '',
+                        email: formData.email || 'user@example.com'
+                    };
+                    
+                    // Combine user and profile data
+                    const apiData = {
+                        ...profileData,
+                        user: userData
+                    };
+                    
+                    console.log('📤 Sending to API:', apiData);
+                    
+                    // Make API request to update profile
+                    const response = await fetch('/api/profile/', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(apiData)
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('✅ Profile saved to database successfully:', result);
+                        
+                        // Update localStorage with the server response for consistency
+                        const currentUser = getCurrentUserData() || createDefaultUser(formData);
+                        const updatedUser = {
+                            ...currentUser,
+                            firstName: formData.firstName,
+                            lastName: formData.lastName,
+                            email: formData.email,
+                            profile: {
+                                ...currentUser.profile,
+                                age: parseInt(formData.age),
+                                height: parseFloat(formData.height),
+                                weight: parseFloat(formData.weight),
+                                fitnessLevel: formData.fitnessLevel,
+                                goals: formData.goals,
+                                isComplete: true,
+                                lastUpdated: new Date().toISOString(),
+                                syncedWithDatabase: true
+                            }
+                        };
+                        
+                        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+                        showSuccessMessage('✅ Profile updated successfully!');
+                        
+                    } else {
+                        const errorData = await response.json().catch(() => ({}));
+                        console.error('❌ API Error:', errorData);
+                        throw new Error(`API Error: ${response.status} - ${errorData.detail || 'Database connection failed'}`);
                     }
-                };
-                
-                // Save to localStorage
-                localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-                
-                // Update the database if available
-                if (window.fitnessDatabase) {
-                    window.fitnessDatabase.updateUser(updatedUser.id, updatedUser);
+                    
+                } catch (apiError) {
+                    console.warn('⚠️ Database save failed, falling back to localStorage:', apiError.message);
+                    
+                    // Fallback to localStorage-only save
+                    const currentUser = getCurrentUserData() || createDefaultUser(formData);
+                    const updatedUser = {
+                        ...currentUser,
+                        firstName: formData.firstName,
+                        lastName: formData.lastName,
+                        email: formData.email,
+                        profile: {
+                            ...currentUser.profile,
+                            age: parseInt(formData.age),
+                            height: parseFloat(formData.height),
+                            weight: parseFloat(formData.weight),
+                            fitnessLevel: formData.fitnessLevel,
+                            goals: formData.goals,
+                            isComplete: true,
+                            lastUpdated: new Date().toISOString(),
+                            syncedWithDatabase: false
+                        }
+                    };
+                    
+                    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+                    
+                    // Update the database if available (legacy support)
+                    if (window.fitnessDatabase) {
+                        window.fitnessDatabase.updateUser(updatedUser.id, updatedUser);
+                    }
+                    
+                    showSuccessMessage('✅ Profile updated locally (will sync when database is available)');
                 }
-                
-                console.log('✅ Profile updated successfully');
-                showSuccessMessage('✅ Profile updated successfully!');
                 
                 // Close modal and refresh display
                 setTimeout(() => {
@@ -10971,7 +11084,10 @@
                     
                     // Update form fields with new data (if in self mode)
                     if (window.currentAnalysisMode === 'self') {
-                        populateUserProfile(updatedUser);
+                        const currentUser = getCurrentUserData();
+                        if (currentUser) {
+                            populateUserProfile(currentUser);
+                        }
                     }
                 }, 1000);
                 
@@ -10985,6 +11101,38 @@
                     saveButton.disabled = false;
                 }, 1000);
             }
+        }
+
+        // Helper function to create default user
+        function createDefaultUser(formData) {
+            return {
+                id: 'user_' + Date.now(),
+                username: formData.firstName || 'User',
+                firstName: formData.firstName || 'First',
+                lastName: formData.lastName || 'Last',
+                email: formData.email || 'user@example.com',
+                createdAt: new Date().toISOString(),
+                profile: {}
+            };
+        }
+
+        // Helper function to get CSRF token
+        function getCsrfToken() {
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];
+            
+            // Fallback: try to get from a hidden input or meta tag
+            if (!cookieValue) {
+                const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                if (csrfInput) return csrfInput.value;
+                
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                if (csrfMeta) return csrfMeta.getAttribute('content');
+            }
+            
+            return cookieValue || '';
         }
         
         // Collect form data from profile edit form
@@ -11691,8 +11839,8 @@
             window.openProfileEditModal = function() {
                 console.log('✏️ Opening profile edit modal');
                 
-                // Check if in production (read-only mode)
-                if (isProductionEnvironment()) {
+                // Check if in demo mode (read-only mode)
+                if (isDemoEnvironment()) {
                     showErrorMessage('❌ Profile editing is disabled in demo mode');
                     return;
                 }

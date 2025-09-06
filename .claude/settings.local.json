@@ -4,7 +4,8 @@
       "Bash(python manage.py:*)",
       "Bash(curl:*)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(DATABASE_URL=\"postgresql://fitness_tracker_db_3qe6_user:oVLVrbtziMFKg6myIBOHpbOIgY5N07ph@dpg-d2u5d7mr433s73e03k00-a/fitness_tracker_db_3qe6\" python manage.py shell -c \"\nimport os\nfrom django.conf import settings\nfrom django.db import connection\n\nprint(''Database configuration with PostgreSQL URL:'')\nprint(f''Engine: {connection.settings_dict[\"\"ENGINE\"\"]}'')\nprint(f''Host: {connection.settings_dict.get(\"\"HOST\"\", \"\"N/A\"\")}'')\nprint(f''Port: {connection.settings_dict.get(\"\"PORT\"\", \"\"N/A\"\")}'')\nprint(f''Name: {connection.settings_dict.get(\"\"NAME\"\", \"\"N/A\"\")}'')\nprint(f''CONN_MAX_AGE: {connection.settings_dict.get(\"\"CONN_MAX_AGE\"\", \"\"N/A\"\")}'')\nprint(f''SSL Mode: {connection.settings_dict.get(\"\"OPTIONS\"\", {}).get(\"\"sslmode\"\", \"\"N/A\"\")}'')\n\nprint(''PostgreSQL configuration test completed!'')\n\")"
     ],
     "deny": [],
     "ask": []
