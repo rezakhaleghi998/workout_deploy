@@ -3747,11 +3747,25 @@
             // Get MET value for workout type and intensity
             const workout = workoutData[workoutType];
             let metValue;
-            switch(intensity) {
-                case 'Low': metValue = workout.metLow; break;
-                case 'Medium': metValue = workout.metMed; break;
-                case 'High': metValue = workout.metHigh; break;
-                default: metValue = workout.metMed;
+            
+            // Safety check: if workout type not found, use a default
+            if (!workout) {
+                console.warn(`Workout type "${workoutType}" not found, using default values`);
+                // Use default MET values for general exercise
+                const defaultWorkout = { metLow: 3, metMed: 6, metHigh: 8 };
+                switch(intensity) {
+                    case 'Low': metValue = defaultWorkout.metLow; break;
+                    case 'Medium': metValue = defaultWorkout.metMed; break;
+                    case 'High': metValue = defaultWorkout.metHigh; break;
+                    default: metValue = defaultWorkout.metMed;
+                }
+            } else {
+                switch(intensity) {
+                    case 'Low': metValue = workout.metLow; break;
+                    case 'Medium': metValue = workout.metMed; break;
+                    case 'High': metValue = workout.metHigh; break;
+                    default: metValue = workout.metMed;
+                }
             }
 
             // Calculate BMR (Basal Metabolic Rate) using actual height
