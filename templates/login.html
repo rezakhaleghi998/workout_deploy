@@ -292,11 +292,29 @@
                     });
 
                     const data = await response.json();
+                    console.log('Registration response:', data);
                     
                     if (response.ok) {
                         showSuccess('Account created successfully! You can now login.');
+                        // Switch back to login form after 2 seconds
+                        setTimeout(() => {
+                            registerForm.style.display = 'none';
+                            loginForm.style.display = 'block';
+                        }, 2000);
                     } else {
-                        const errorMsg = Object.values(data).flat().join(' ');
+                        console.log('Registration failed:', data);
+                        let errorMsg = '';
+                        if (data.error) {
+                            errorMsg = data.error;
+                        } else if (data.username) {
+                            errorMsg = 'Username: ' + data.username.join(' ');
+                        } else if (data.email) {
+                            errorMsg = 'Email: ' + data.email.join(' ');
+                        } else if (data.password) {
+                            errorMsg = 'Password: ' + data.password.join(' ');
+                        } else {
+                            errorMsg = Object.values(data).flat().join(' ');
+                        }
                         showError(errorMsg || 'Failed to create account');
                     }
                 } catch (error) {

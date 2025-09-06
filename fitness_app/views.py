@@ -61,23 +61,40 @@ def login_view(request):
 @permission_classes([AllowAny])
 def register_user(request):
     """Register a new user"""
+    print(f"Registration attempt with data: {request.data}")
+    
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
-        with transaction.atomic():
-            user = serializer.save()
-            # Create user profile
-            UserProfile.objects.get_or_create(user=user)
-            # Create user ranking
-            UserRanking.objects.get_or_create(user=user)
-            # Create auth token
-            token, created = Token.objects.get_or_create(user=user)
-            
+        try:
+            with transaction.atomic():
+                user = serializer.save()
+                print(f"User created successfully: {user.username}")
+                
+                # Create user profile
+                profile, created = UserProfile.objects.get_or_create(user=user)
+                print(f"Profile created: {created}")
+                
+                # Create user ranking
+                ranking, created = UserRanking.objects.get_or_create(user=user)
+                print(f"Ranking created: {created}")
+                
+                # Create auth token
+                token, created = Token.objects.get_or_create(user=user)
+                print(f"Token created: {created}")
+                
+                return Response({
+                    'user': UserSerializer(user).data,
+                    'token': token.key,
+                    'message': 'User registered successfully'
+                }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(f"Registration error: {e}")
             return Response({
-                'user': UserSerializer(user).data,
-                'token': token.key,
-                'message': 'User registered successfully'
-            }, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                'error': f'Registration failed: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        print(f"Validation errors: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
