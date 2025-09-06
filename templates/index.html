@@ -10957,8 +10957,144 @@
         });
     </script>
 
-    <!-- Load UI fixes after all other scripts -->
-    <script src="{% static 'js/ui_fixes.js' %}"></script>
+    <!-- Embedded UI Fixes (to avoid static file serving issues) -->
+    <script>
+        // UI Fixes for User Menu and Analysis Mode
+        console.log('🚀 Loading embedded UI fixes...');
+        
+        function fixUserMenuAndAnalysisMode() {
+            console.log('🔧 Applying user interface fixes...');
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', applyFixes);
+            } else {
+                applyFixes();
+            }
+        }
+
+        function applyFixes() {
+            console.log('✅ DOM ready, applying fixes...');
+            
+            // Fix 1: User Dropdown Menu
+            fixUserDropdownMenu();
+            
+            // Fix 2: Analysis Mode Toggle
+            fixAnalysisModeToggle();
+            
+            console.log('🎉 UI fixes applied successfully!');
+        }
+
+        function fixUserDropdownMenu() {
+            console.log('🔧 Fixing user dropdown menu...');
+            
+            const userInfo = document.getElementById('userInfo');
+            const userDropdown = document.getElementById('userDropdown');
+            
+            if (!userInfo || !userDropdown) {
+                console.warn('⚠️ User menu elements not found');
+                return;
+            }
+            
+            // Add improved click handler
+            userInfo.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('👤 User menu clicked');
+                
+                // Toggle dropdown
+                const isActive = userDropdown.classList.contains('active');
+                if (isActive) {
+                    userDropdown.classList.remove('active');
+                    console.log('📤 Dropdown closed');
+                } else {
+                    userDropdown.classList.add('active');
+                    console.log('📥 Dropdown opened');
+                }
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!userInfo.contains(e.target) && !userDropdown.contains(e.target)) {
+                    userDropdown.classList.remove('active');
+                }
+            });
+        }
+
+        function fixAnalysisModeToggle() {
+            console.log('🔧 Fixing analysis mode toggle...');
+            
+            const selfMode = document.getElementById('selfMode');
+            const guestMode = document.getElementById('guestMode');
+            const guestSection = document.getElementById('guestAnalysisSection');
+            
+            if (!selfMode || !guestMode) {
+                console.warn('⚠️ Analysis mode elements not found');
+                return;
+            }
+            
+            // Add improved click handlers
+            selfMode.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('👤 Self analysis mode selected');
+                setAnalysisModeFix('self');
+            });
+            
+            guestMode.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('👥 Guest analysis mode selected');
+                setAnalysisModeFix('guest');
+            });
+        }
+
+        function setAnalysisModeFix(mode) {
+            console.log(`🎯 Setting analysis mode to: ${mode}`);
+            
+            const selfMode = document.getElementById('selfMode');
+            const guestMode = document.getElementById('guestMode');
+            const guestSection = document.getElementById('guestAnalysisSection');
+            
+            if (mode === 'self') {
+                selfMode.classList.add('active');
+                guestMode.classList.remove('active');
+                if (guestSection) {
+                    guestSection.classList.remove('active');
+                    guestSection.style.display = 'none';
+                }
+                
+                // Clear guest name
+                const guestName = document.getElementById('guestName');
+                if (guestName) guestName.value = '';
+                
+            } else if (mode === 'guest') {
+                guestMode.classList.add('active');
+                selfMode.classList.remove('active');
+                if (guestSection) {
+                    guestSection.classList.add('active');
+                    guestSection.style.display = 'block';
+                }
+                
+                // Clear form for guest analysis
+                const fieldIds = ['age', 'gender', 'height', 'weight'];
+                fieldIds.forEach(fieldId => {
+                    const element = document.getElementById(fieldId);
+                    if (element) {
+                        if (element.tagName === 'SELECT') {
+                            element.selectedIndex = 0;
+                        } else {
+                            element.value = '';
+                        }
+                    }
+                });
+            }
+            
+            // Update global mode
+            window.currentAnalysisMode = mode;
+        }
+        
+        // Initialize fixes when DOM is ready
+        fixUserMenuAndAnalysisMode();
+    </script>
 
 </body>
 </html>
