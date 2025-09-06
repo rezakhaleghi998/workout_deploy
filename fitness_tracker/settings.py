@@ -4,7 +4,6 @@ Optimized for deployment on Render with PostgreSQL.
 """
 
 import os
-from decouple import config
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -16,13 +15,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '.onrender.com',
-    config('RENDER_EXTERNAL_HOSTNAME', default='')
+    os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
 ]
 
 # Add your custom domain here
