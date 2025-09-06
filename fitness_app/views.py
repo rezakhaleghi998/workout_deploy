@@ -197,7 +197,6 @@ def user_profile(request):
         return Response({
             'error': f'Profile operation failed: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                            'first_name': 'Demo',
                             'last_name': 'User',
                             'email': 'demo@example.com'
                         }
