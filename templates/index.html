@@ -10148,7 +10148,7 @@
             const viewStatsBtn = document.getElementById('viewStatsBtn');
             const exportDataBtn = document.getElementById('exportDataBtn');
             
-            if (editProfileBtn) editProfileBtn.addEventListener('click', openProfileModal);
+            if (editProfileBtn) editProfileBtn.addEventListener('click', openProfileViewModal);
             if (viewStatsBtn) viewStatsBtn.addEventListener('click', showUserStats);
             if (exportDataBtn) exportDataBtn.addEventListener('click', exportUserData);
             
@@ -10165,20 +10165,44 @@
             
             // Profile View Modal Events
             if (viewProfileBtn) viewProfileBtn.addEventListener('click', openProfileViewModal);
-            if (closeProfileViewModal) closeProfileViewModal.addEventListener('click', function() { closeProfileViewModal(); });
+            if (closeProfileViewModal) closeProfileViewModal.addEventListener('click', function() { 
+                console.log('❌ Close button clicked for profile view modal');
+                const modal = document.getElementById('profileViewModal');
+                if (modal) {
+                    modal.classList.remove('active');
+                    console.log('✅ Profile view modal closed successfully');
+                } else {
+                    console.error('❌ Profile view modal element not found');
+                }
+            });
             if (profileViewModal) {
                 profileViewModal.addEventListener('click', function(e) {
-                    if (e.target === profileViewModal) closeProfileViewModal();
+                    if (e.target === profileViewModal) {
+                        const modal = document.getElementById('profileViewModal');
+                        if (modal) modal.classList.remove('active');
+                    }
                 });
             }
             if (openEditFromView) openEditFromView.addEventListener('click', openEditFromProfileView);
             
             // Profile Edit Modal Events  
-            if (editProfileBtn) editProfileBtn.addEventListener('click', openProfileEditModal);
-            if (closeProfileEditModal) closeProfileEditModal.addEventListener('click', function() { closeProfileEditModal(); });
+            if (editProfileBtn) editProfileBtn.addEventListener('click', openProfileViewModal);
+            if (closeProfileEditModal) closeProfileEditModal.addEventListener('click', function() { 
+                console.log('❌ Close button clicked for profile edit modal');
+                const modal = document.getElementById('profileEditModal');
+                if (modal) {
+                    modal.classList.remove('active');
+                    console.log('✅ Profile edit modal closed successfully');
+                } else {
+                    console.error('❌ Profile edit modal element not found');
+                }
+            });
             if (profileEditModal) {
                 profileEditModal.addEventListener('click', function(e) {
-                    if (e.target === profileEditModal) closeProfileEditModal();
+                    if (e.target === profileEditModal) {
+                        const modal = document.getElementById('profileEditModal');
+                        if (modal) modal.classList.remove('active');
+                    }
                 });
             }
             if (editProfileForm) editProfileForm.addEventListener('submit', saveProfileChanges);
@@ -10267,9 +10291,15 @@
         
         // Profile modal functions
         function openProfileViewModal() {
+            console.log('🔍 Opening profile view modal...');
             loadAndDisplayProfile();
             const modal = document.getElementById('profileViewModal');
-            if (modal) modal.classList.add('active');
+            if (modal) {
+                modal.classList.add('active');
+                console.log('✅ Profile view modal opened successfully');
+            } else {
+                console.error('❌ Profile view modal element not found');
+            }
             // Close user dropdown
             const dropdown = document.getElementById('userDropdown');
             if (dropdown) dropdown.classList.remove('active');
