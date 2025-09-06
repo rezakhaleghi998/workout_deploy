@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from django.contrib.auth import authenticate
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Q, Sum, Avg, Count
 from django.utils import timezone
+from django.http import JsonResponse
 from datetime import datetime, timedelta
 
 from rest_framework import status, generics, permissions
@@ -18,6 +19,31 @@ from .serializers import (
     UserRankingSerializer, AchievementSerializer
 )
 from .db_retry import db_retry, ensure_db_connection
+
+# ============ HEALTH CHECK ============
+
+def health_check(request):
+    """Health check endpoint for Render deployment"""
+    try:
+        # Test database connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        
+        # Test basic functionality
+        user_count = User.objects.count()
+        
+        return JsonResponse({
+            'status': 'healthy',
+            'database': 'connected',
+            'user_count': user_count,
+            'timestamp': timezone.now().isoformat()
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'unhealthy', 
+            'error': str(e),
+            'timestamp': timezone.now().isoformat()
+        }, status=500)
 
 # ============ MAIN VIEWS ============
 

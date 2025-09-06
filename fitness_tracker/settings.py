@@ -86,33 +86,51 @@ WSGI_APPLICATION = 'fitness_tracker.wsgi.application'
 
 # ============ DATABASE ============
 
-# Database configuration with connection retries
-if 'DATABASE_URL' in os.environ:
-    import dj_database_url
-    DATABASES = {
-        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
-    }
-    # Add PostgreSQL specific settings for production
-    DATABASES['default'].update({
-        'CONN_MAX_AGE': 60,  # Keep connections alive for 60 seconds
-        'OPTIONS': {
-            'MAX_CONNS': 20,
-            'connect_timeout': 10,
-            'sslmode': 'require',  # Required for Render PostgreSQL
-        },
-        # Connection retry settings
-        'RETRY_TIMES': 5,
-        'RETRY_DELAY': 2,
-    })
+# Database configuration with robust error handling
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if DATABASE_URL:
+    # Production: Use PostgreSQL via DATABASE_URL
+    try:
+        import dj_database_url
+        import psycopg2
+        
+        DATABASES = {
+            'default': dj_database_url.parse(DATABASE_URL, conn_max_age=60)
+        }
+        
+        # PostgreSQL specific settings for Render
+        DATABASES['default'].update({
+            'ENGINE': 'django.db.backends.postgresql',
+            'CONN_MAX_AGE': 60,
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {
+                'sslmode': 'require',
+                'connect_timeout': 30,
+                'options': '-c default_transaction_isolation=read_committed'
+            },
+        })
+        
+        print(f"✅ PostgreSQL database configured successfully")
+        print(f"Database: {DATABASES['default']['NAME']}")
+        
+    except ImportError as e:
+        print(f"❌ Database import error: {e}")
+        raise Exception(f"Failed to import required database modules: {e}")
+    except Exception as e:
+        print(f"❌ Database configuration error: {e}")
+        raise Exception(f"Failed to configure PostgreSQL database: {e}")
+        
 else:
     # Development: Use SQLite
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
-            'CONN_MAX_AGE': 0,  # No connection pooling for SQLite
+            'CONN_MAX_AGE': 0,
         }
     }
+    print("📝 Using SQLite database for development")
 
 # ============ AUTHENTICATION ============
 

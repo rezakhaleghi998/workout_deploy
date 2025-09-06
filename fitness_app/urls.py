@@ -4,6 +4,9 @@ from . import views
 app_name = 'fitness_app'
 
 urlpatterns = [
+    # Health check for Render
+    path('health/', views.health_check, name='health_check'),
+    
     # API root
     path('', views.api_root, name='api_root'),
     

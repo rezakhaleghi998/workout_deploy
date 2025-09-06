@@ -1,1 +1,1 @@
-web: gunicorn fitness_tracker.wsgi:application --host 0.0.0.0 --port $PORT
+web: gunicorn fitness_tracker.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --max-requests 1000 --preload

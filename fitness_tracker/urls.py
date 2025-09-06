@@ -6,8 +6,12 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
+from fitness_app.views import health_check
 
 urlpatterns = [
+    # Health check for Render deployment
+    path('health/', health_check, name='health_check'),
+    
     # Admin interface
     path('admin/', admin.site.urls),
     
