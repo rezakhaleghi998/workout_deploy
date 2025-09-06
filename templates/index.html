@@ -11616,14 +11616,56 @@
             const editHeight = document.getElementById('editHeight');
             const editWeight = document.getElementById('editWeight');
             const editFitnessLevel = document.getElementById('editFitnessLevel');
+            const editGoals = document.getElementById('editGoals');
+            const editFirstName = document.getElementById('editFirstName');
+            const editLastName = document.getElementById('editLastName');
+            const editEmail = document.getElementById('editEmail');
 
             if (editAge && profileData.age) editAge.value = profileData.age;
             if (editHeight && profileData.height) editHeight.value = profileData.height;
             if (editWeight && profileData.weight) editWeight.value = profileData.weight;
             if (editFitnessLevel && profileData.fitness_level) editFitnessLevel.value = profileData.fitness_level;
+            if (editGoals && profileData.goals) editGoals.value = profileData.goals;
+            if (editFirstName && profileData.user.first_name) editFirstName.value = profileData.user.first_name;
+            if (editLastName && profileData.user.last_name) editLastName.value = profileData.user.last_name;
+            if (editEmail && profileData.user.email) editEmail.value = profileData.user.email;
 
-            // Don't show profile info automatically anymore
-            // updateProfileInfoDisplay(profileData);
+            // Store profile data globally for use in form calculations
+            window.currentUserProfile = profileData;
+            
+            // Update forms with real user data
+            updateFormsWithProfileData(profileData);
+        }
+
+        // Update forms with real profile data
+        function updateFormsWithProfileData(profileData) {
+            if (!profileData) return;
+
+            // Update main form with user's real data
+            const ageInput = document.querySelector('input[placeholder="Enter age (years)"]');
+            const heightInput = document.querySelector('input[placeholder="Enter height (cm)"]');
+            const weightInput = document.querySelector('input[placeholder="Enter weight (kg)"]');
+
+            if (ageInput && profileData.age) {
+                ageInput.value = profileData.age;
+            }
+            if (heightInput && profileData.height) {
+                heightInput.value = profileData.height;
+            }
+            if (weightInput && profileData.weight) {
+                weightInput.value = profileData.weight;
+            }
+
+            // Update gender and fitness level if available
+            const genderSelect = document.querySelector('select[name="gender"]');
+            const fitnessSelect = document.querySelector('select[name="fitness_level"]');
+
+            if (fitnessSelect && profileData.fitness_level) {
+                fitnessSelect.value = profileData.fitness_level;
+            }
+
+            console.log('✅ Forms updated with user profile data:', profileData);
+        }
         }
 
         // Update profile information in the main display

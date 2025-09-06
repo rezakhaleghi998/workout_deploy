@@ -132,58 +132,71 @@ def logout_user(request):
         return Response({'error': 'Error logging out'}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT'])
-@permission_classes([AllowAny])  # Allow unauthenticated access for demo mode
+@permission_classes([IsAuthenticated])
 @db_retry(max_retries=3, delay=1)
 def user_profile(request):
-    """Get or update user profile with database retry logic"""
+    """Get or update user profile"""
     try:
-        # For demo purposes, we'll use a default profile approach
-        # In production with authentication, this would use request.user
-        
         if request.method == 'GET':
-            # Try to get or create a default profile for demo
-            try:
-                profile = UserProfile.objects.first()
-                if not profile:
-                    # Create a default profile for demo
-                    default_user, _ = User.objects.get_or_create(
-                        username='demo_user',
-                        defaults={
-                            'email': 'demo@example.com',
-                            'first_name': 'Demo',
-                            'last_name': 'User'
-                        }
-                    )
-                    profile, _ = UserProfile.objects.get_or_create(
-                        user=default_user,
-                        defaults={
-                            'height': None,
-                            'weight': None,
-                            'fitness_level': 'beginner',
-                            'goals': ''
-                        }
-                    )
-                
-                # Include user data in response
-                response_data = UserProfileSerializer(profile).data
-                response_data['user'] = {
-                    'username': profile.user.username,
-                    'first_name': profile.user.first_name,
-                    'last_name': profile.user.last_name,
-                    'email': profile.user.email
-                }
-                return Response(response_data)
-                
-            except Exception as e:
-                return Response({
-                    'error': f'Database connection failed: {str(e)}',
-                    'fallback_data': {
-                        'height': None,
-                        'weight': None,
-                        'fitness_level': 'beginner',
-                        'goals': '',
-                        'user': {
-                            'username': 'demo_user',
+            # Get profile for the authenticated user
+            user = request.user
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            
+            # Serialize the data
+            profile_data = {
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'total_workouts': user.total_workouts,
+                    'date_joined': user.date_joined.isoformat()
+                },
+                'age': profile.age,
+                'height': profile.height,
+                'weight': profile.weight,
+                'fitness_level': profile.fitness_level,
+                'goals': profile.goals,
+                'date_of_birth': profile.date_of_birth.isoformat() if profile.date_of_birth else None
+            }
+            
+            return Response(profile_data, status=status.HTTP_200_OK)
+        
+        elif request.method == 'PUT':
+            # Update profile for the authenticated user
+            user = request.user
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            
+            # Update user fields
+            user.first_name = request.data.get('first_name', user.first_name)
+            user.last_name = request.data.get('last_name', user.last_name)
+            user.email = request.data.get('email', user.email)
+            user.save()
+            
+            # Update profile fields
+            profile.height = request.data.get('height', profile.height)
+            profile.weight = request.data.get('weight', profile.weight)
+            profile.fitness_level = request.data.get('fitness_level', profile.fitness_level)
+            profile.goals = request.data.get('goals', profile.goals)
+            
+            # Handle date of birth
+            dob = request.data.get('date_of_birth')
+            if dob:
+                try:
+                    from datetime import datetime
+                    profile.date_of_birth = datetime.strptime(dob, '%Y-%m-%d').date()
+                except:
+                    pass
+            
+            profile.save()
+            
+            return Response({'message': 'Profile updated successfully'}, status=status.HTTP_200_OK)
+            
+    except Exception as e:
+        return Response({
+            'error': f'Profile operation failed: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                             'first_name': 'Demo',
                             'last_name': 'User',
                             'email': 'demo@example.com'
