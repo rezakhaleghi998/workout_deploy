@@ -9914,51 +9914,10 @@
         
         // Check authentication on page load
         document.addEventListener('DOMContentLoaded', function() {
-            checkAuthentication();
             setupUserInterface();
             setupLogoutHandler();
         });
 
-        function checkAuthentication() {
-            if (!window.fitnessDatabase) {
-                console.error('❌ Database system not loaded');
-                redirectToLogin();
-                return;
-            }
-
-            const currentUser = window.fitnessDatabase.getCurrentUser();
-            if (!currentUser) {
-                console.log('🔐 No authenticated user found, redirecting to login');
-                redirectToLogin();
-                return;
-            }
-
-            console.log('✅ User authenticated:', currentUser.username);
-            updateUserInterface(currentUser);
-            
-            // Check if profile setup is needed (after authentication)
-            checkProfileCompleteness(currentUser);
-        }
-
-        function checkProfileCompleteness(currentUser) {
-            // Only show profile setup if user profile is incomplete
-            if (!currentUser.profile || !currentUser.profile.isComplete) {
-                console.log('⚙️ Profile incomplete, showing setup wizard');
-                // Show profile setup wizard
-                const overlay = document.getElementById('profileSetupOverlay');
-                if (overlay) {
-                    overlay.classList.add('active');
-                }
-            } else {
-                console.log('✅ Profile complete, proceeding to main app');
-                // Profile is complete, populate the form with user data
-                console.log('🔄 Auto-populating form with user profile data...');
-                populateUserProfile(currentUser);
-                // Also update analysis mode to ensure proper state
-                setAnalysisMode('self');
-            }
-        }
-        
         function populateBasicUserData(currentUser) {
             // Fallback function to populate basic user data
             if (currentUser && currentUser.profile) {
@@ -11750,9 +11709,8 @@
             // Initialize environment detection and notifications first
             showEnvironmentNotification();
             
-            if (!checkAuthentication()) {
-                return; // Will redirect to login
-            }
+            // Always allow access - check authentication happens automatically
+            checkAuthentication();
             
             // Load and display user profile
             await loadUserProfile();
