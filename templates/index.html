@@ -9717,13 +9717,11 @@
                 }
             } else {
                 console.log('✅ Profile complete, proceeding to main app');
-                // Profile is complete, populate the form with user data if function is available
-                if (typeof populateUserProfile === 'function') {
-                    populateUserProfile(currentUser);
-                } else {
-                    // Fallback: populate basic fields
-                    populateBasicUserData(currentUser);
-                }
+                // Profile is complete, populate the form with user data
+                console.log('🔄 Auto-populating form with user profile data...');
+                populateUserProfile(currentUser);
+                // Also update analysis mode to ensure proper state
+                setAnalysisMode('self');
             }
         }
         
@@ -10163,12 +10161,11 @@
             // Modal controls - Profile Edit Modal
             const closeProfileEditModal = document.getElementById('closeProfileEditModal');
             const profileEditModal = document.getElementById('profileEditModal');
-            const editProfileBtn = document.getElementById('editProfileBtn');
             const editProfileForm = document.getElementById('editProfileForm');
             
             // Profile View Modal Events
             if (viewProfileBtn) viewProfileBtn.addEventListener('click', openProfileViewModal);
-            if (closeProfileViewModal) closeProfileViewModal.addEventListener('click', closeProfileViewModal);
+            if (closeProfileViewModal) closeProfileViewModal.addEventListener('click', function() { closeProfileViewModal(); });
             if (profileViewModal) {
                 profileViewModal.addEventListener('click', function(e) {
                     if (e.target === profileViewModal) closeProfileViewModal();
@@ -10178,7 +10175,7 @@
             
             // Profile Edit Modal Events  
             if (editProfileBtn) editProfileBtn.addEventListener('click', openProfileEditModal);
-            if (closeProfileEditModal) closeProfileEditModal.addEventListener('click', closeProfileEditModal);
+            if (closeProfileEditModal) closeProfileEditModal.addEventListener('click', function() { closeProfileEditModal(); });
             if (profileEditModal) {
                 profileEditModal.addEventListener('click', function(e) {
                     if (e.target === profileEditModal) closeProfileEditModal();
@@ -10503,20 +10500,50 @@
         }
         
         function populateUserProfile(user) {
+            console.log('🔄 Populating user profile:', user);
+            
             if (user && user.profile) {
                 const profile = user.profile;
+                console.log('📊 User profile data:', profile);
                 
                 // Populate main form if in self-analysis mode
                 if (currentAnalysisMode === 'self') {
-                    if (profile.age) document.getElementById('age').value = profile.age;
-                    if (profile.gender) document.getElementById('gender').value = profile.gender;
-                    if (profile.height) document.getElementById('height').value = profile.height;
-                    if (profile.weight) document.getElementById('weight').value = profile.weight;
+                    if (profile.age) {
+                        const ageField = document.getElementById('age');
+                        if (ageField) {
+                            ageField.value = profile.age;
+                            console.log('✅ Set age:', profile.age);
+                        }
+                    }
+                    if (profile.gender) {
+                        const genderField = document.getElementById('gender');
+                        if (genderField) {
+                            genderField.value = profile.gender;
+                            console.log('✅ Set gender:', profile.gender);
+                        }
+                    }
+                    if (profile.height) {
+                        const heightField = document.getElementById('height');
+                        if (heightField) {
+                            heightField.value = profile.height;
+                            console.log('✅ Set height:', profile.height);
+                        }
+                    }
+                    if (profile.weight) {
+                        const weightField = document.getElementById('weight');
+                        if (weightField) {
+                            weightField.value = profile.weight;
+                            console.log('✅ Set weight:', profile.weight);
+                        }
+                    }
                 }
+            } else {
+                console.log('⚠️ No user profile data available');
             }
         }
         
         function setAnalysisMode(mode) {
+            console.log('🔄 Setting analysis mode to:', mode);
             currentAnalysisMode = mode;
             
             const selfMode = document.getElementById('selfMode');
@@ -10528,15 +10555,23 @@
                 guestMode.classList.remove('active');
                 if (guestSection) guestSection.classList.remove('active');
                 
-                // Populate with user's profile
+                console.log('🔄 Switching to self mode - loading user data...');
+                
+                // Get current user and populate with their profile
                 const currentUser = getCurrentUserData();
-                populateUserProfile(currentUser);
+                if (currentUser) {
+                    console.log('👤 Current user found:', currentUser.username);
+                    populateUserProfile(currentUser);
+                } else {
+                    console.log('⚠️ No current user found');
+                }
                 
                 // Clear guest name
                 const guestName = document.getElementById('guestName');
                 if (guestName) guestName.value = '';
                 
             } else {
+                console.log('🔄 Switching to guest mode - clearing form...');
                 guestMode.classList.add('active');
                 selfMode.classList.remove('active');
                 if (guestSection) guestSection.classList.add('active');
