@@ -11578,6 +11578,35 @@
                 userAvatar.textContent = profileData.user.username.charAt(0).toUpperCase();
             }
 
+            // Auto-populate form fields with user profile data
+            if (profileData) {
+                // Populate basic profile data
+                if (profileData.age) {
+                    const ageField = document.getElementById('age');
+                    if (ageField && !ageField.value) ageField.value = profileData.age;
+                }
+                
+                if (profileData.height) {
+                    const heightField = document.getElementById('height');
+                    if (heightField && !heightField.value) heightField.value = profileData.height;
+                }
+                
+                if (profileData.weight) {
+                    const weightField = document.getElementById('weight');
+                    if (weightField && !weightField.value) weightField.value = profileData.weight;
+                }
+                
+                // For gender, we need to check if it exists in profile data
+                if (profileData.user && profileData.user.gender) {
+                    const genderField = document.getElementById('gender');
+                    if (genderField && !genderField.value) {
+                        genderField.value = profileData.user.gender;
+                    }
+                }
+                
+                console.log('✅ Form auto-populated with user profile data');
+            }
+
             if (userStats && profileData.user) {
                 const joinDate = new Date(profileData.user.date_joined).toLocaleDateString();
                 const workoutCount = profileData.user.total_workouts || 0;
