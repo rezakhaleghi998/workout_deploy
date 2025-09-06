@@ -27,9 +27,6 @@ urlpatterns = [
     
     # Index page alternative routes
     path('index.html', TemplateView.as_view(template_name='index.html'), name='index_html'),
-    
-    # Catch all other routes to main page
-    path('<path:path>', TemplateView.as_view(template_name='index.html'), name='catch_all'),
 ]
 
 # Serve static files in development
