@@ -197,61 +197,6 @@ def user_profile(request):
         return Response({
             'error': f'Profile operation failed: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                            'last_name': 'User',
-                            'email': 'demo@example.com'
-                        }
-                    }
-                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        
-        elif request.method == 'PUT':
-            try:
-                # Get or create profile for demo
-                profile = UserProfile.objects.first()
-                if not profile:
-                    default_user, _ = User.objects.get_or_create(
-                        username='demo_user',
-                        defaults={
-                            'email': 'demo@example.com',
-                            'first_name': 'Demo',
-                            'last_name': 'User'
-                        }
-                    )
-                    profile, _ = UserProfile.objects.get_or_create(user=default_user)
-                
-                # Handle user data updates if provided
-                user_data = request.data.get('user', {})
-                if user_data:
-                    user_serializer = UserSerializer(profile.user, data=user_data, partial=True)
-                    if user_serializer.is_valid():
-                        user_serializer.save()
-                    else:
-                        return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                
-                # Handle profile data updates
-                serializer = UserProfileSerializer(profile, data=request.data, partial=True)
-                if serializer.is_valid():
-                    serializer.save()
-                    
-                    # Include user data in response
-                    response_data = serializer.data
-                    response_data['user'] = {
-                        'username': profile.user.username,
-                        'first_name': profile.user.first_name,
-                        'last_name': profile.user.last_name,
-                        'email': profile.user.email
-                    }
-                    return Response(response_data)
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                
-            except Exception as e:
-                return Response({
-                    'error': f'Database save failed: {str(e)}'
-                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-    
-    except Exception as e:
-        return Response({
-            'error': f'Profile operation failed: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ============ WORKOUT VIEWS ============
 
