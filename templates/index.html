@@ -10978,8 +10978,14 @@
             // Fix 1: User Dropdown Menu
             fixUserDropdownMenu();
             
-            // Fix 2: Analysis Mode Toggle
+            // Fix 2: Profile Menu Items
+            fixProfileMenuItems();
+            
+            // Fix 3: Analysis Mode Toggle
             fixAnalysisModeToggle();
+            
+            // Fix 4: Profile Setup for New Users
+            checkProfileCompleteness();
             
             console.log('🎉 UI fixes applied successfully!');
         }
@@ -11020,6 +11026,120 @@
                 }
             });
         }
+
+        function fixProfileMenuItems() {
+            console.log('🔧 Fixing profile menu items...');
+            
+            // Profile menu item handlers
+            const menuItems = {
+                'viewProfileBtn': function() {
+                    console.log('👤 View Profile clicked');
+                    openProfileViewModal();
+                },
+                'editProfileBtn': function() {
+                    console.log('✏️ Edit Profile clicked');
+                    openProfileEditModal();
+                },
+                'viewStatsBtn': function() {
+                    console.log('📊 View Stats clicked');
+                    showUserStats();
+                },
+                'exportDataBtn': function() {
+                    console.log('📥 Export Data clicked');
+                    exportUserData();
+                }
+            };
+            
+            // Add click handlers to each menu item
+            Object.keys(menuItems).forEach(itemId => {
+                const element = document.getElementById(itemId);
+                if (element) {
+                    element.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Close dropdown
+                        const dropdown = document.getElementById('userDropdown');
+                        if (dropdown) dropdown.classList.remove('active');
+                        
+                        // Execute function
+                        menuItems[itemId]();
+                    });
+                } else {
+                    console.warn(`⚠️ Menu item ${itemId} not found`);
+                }
+            });
+        }
+
+        // Define profile functions if they don't exist
+        window.openProfileViewModal = function() {
+            console.log('👤 Opening profile view modal');
+            const modal = document.getElementById('profileViewModal');
+            if (modal) {
+                loadAndDisplayProfile();
+                modal.classList.add('active');
+                modal.style.display = 'flex';
+            } else {
+                console.warn('⚠️ Profile view modal not found');
+                alert('Profile view feature will be available soon!');
+            }
+        };
+
+        window.openProfileEditModal = function() {
+            console.log('✏️ Opening profile edit modal');
+            const modal = document.getElementById('profileEditModal');
+            if (modal) {
+                loadProfileForEditing();
+                modal.classList.add('active');
+                modal.style.display = 'flex';
+            } else {
+                console.warn('⚠️ Profile edit modal not found');
+                alert('Profile editing feature will be available soon!');
+            }
+        };
+
+        window.showUserStats = function() {
+            console.log('📊 Showing user stats');
+            alert('User Stats feature will be implemented soon!');
+        };
+
+        window.exportUserData = function() {
+            console.log('📥 Exporting user data');
+            const currentUser = getCurrentUserData();
+            if (currentUser) {
+                const dataStr = JSON.stringify(currentUser, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${currentUser.username}_data.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+                console.log('✅ Data export initiated');
+            } else {
+                alert('No user data found to export');
+            }
+        };
+
+        window.loadAndDisplayProfile = function() {
+            console.log('📋 Loading profile data for display');
+            const currentUser = getCurrentUserData();
+            if (currentUser && currentUser.profile) {
+                console.log('✅ Profile data loaded:', currentUser.profile);
+            } else {
+                console.warn('⚠️ No profile data found');
+            }
+        };
+
+        window.loadProfileForEditing = function() {
+            console.log('✏️ Loading profile data for editing');
+            const currentUser = getCurrentUserData();
+            if (currentUser && currentUser.profile) {
+                console.log('✅ Profile data loaded for editing:', currentUser.profile);
+            } else {
+                console.warn('⚠️ No profile data found for editing');
+            }
+        };
 
         function fixAnalysisModeToggle() {
             console.log('🔧 Fixing analysis mode toggle...');
@@ -11090,6 +11210,172 @@
             
             // Update global mode
             window.currentAnalysisMode = mode;
+        }
+
+        function checkProfileCompleteness() {
+            console.log('🔍 Checking profile completeness for new users...');
+            
+            const currentUser = getCurrentUserData();
+            if (!currentUser) {
+                console.log('⚠️ No user data found');
+                return;
+            }
+            
+            // Check if profile is incomplete
+            const profile = currentUser.profile;
+            const requiredFields = ['age', 'gender', 'height', 'weight'];
+            
+            if (!profile || requiredFields.some(field => !profile[field])) {
+                console.log('📝 Profile incomplete, showing setup wizard...');
+                showProfileSetupWizard();
+            } else {
+                console.log('✅ Profile complete');
+            }
+        }
+
+        function showProfileSetupWizard() {
+            console.log('🧙‍♂️ Showing profile setup wizard...');
+            
+            // Create or show profile setup modal
+            let setupModal = document.getElementById('profileSetupWizard');
+            
+            if (!setupModal) {
+                // Create the setup wizard modal
+                setupModal = document.createElement('div');
+                setupModal.id = 'profileSetupWizard';
+                setupModal.className = 'profile-modal active';
+                setupModal.style.display = 'flex';
+                setupModal.innerHTML = `
+                    <div class="profile-modal-content">
+                        <div class="profile-modal-header">
+                            <h2>🎯 Complete Your Profile</h2>
+                            <p>Let's set up your profile to get personalized workout recommendations!</p>
+                        </div>
+                        <div class="profile-form-grid">
+                            <div class="profile-form-group">
+                                <label for="setupAge">Age *</label>
+                                <input type="number" id="setupAge" placeholder="Enter your age" min="15" max="100" required>
+                            </div>
+                            <div class="profile-form-group">
+                                <label for="setupGender">Gender *</label>
+                                <select id="setupGender" required>
+                                    <option value="">Select gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="profile-form-group">
+                                <label for="setupHeight">Height (cm) *</label>
+                                <input type="number" id="setupHeight" placeholder="Enter height in cm" min="120" max="250" required>
+                            </div>
+                            <div class="profile-form-group">
+                                <label for="setupWeight">Weight (kg) *</label>
+                                <input type="number" id="setupWeight" placeholder="Enter weight in kg" min="30" max="300" required>
+                            </div>
+                            <div class="profile-form-group">
+                                <label for="setupActivityLevel">Activity Level</label>
+                                <select id="setupActivityLevel">
+                                    <option value="Sedentary">Sedentary</option>
+                                    <option value="Lightly Active">Lightly Active</option>
+                                    <option value="Moderately Active" selected>Moderately Active</option>
+                                    <option value="Very Active">Very Active</option>
+                                    <option value="Extremely Active">Extremely Active</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="profile-form-actions">
+                            <button type="button" id="completeProfileSetup" class="btn-primary">
+                                🚀 Complete Setup & Start Using App
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(setupModal);
+                
+                // Add event listener for setup completion
+                document.getElementById('completeProfileSetup').addEventListener('click', completeProfileSetup);
+            } else {
+                setupModal.classList.add('active');
+                setupModal.style.display = 'flex';
+            }
+        }
+
+        function completeProfileSetup() {
+            console.log('✅ Completing profile setup...');
+            
+            const age = document.getElementById('setupAge').value;
+            const gender = document.getElementById('setupGender').value;
+            const height = document.getElementById('setupHeight').value;
+            const weight = document.getElementById('setupWeight').value;
+            const activityLevel = document.getElementById('setupActivityLevel').value;
+            
+            // Validate required fields
+            if (!age || !gender || !height || !weight) {
+                alert('Please fill in all required fields (marked with *)');
+                return;
+            }
+            
+            // Save profile data
+            const currentUser = getCurrentUserData();
+            if (currentUser) {
+                currentUser.profile = {
+                    ...currentUser.profile,
+                    age: parseInt(age),
+                    gender: gender,
+                    height: parseInt(height),
+                    weight: parseInt(weight),
+                    activityLevel: activityLevel,
+                    setupCompleted: true,
+                    setupDate: new Date().toISOString()
+                };
+                
+                // Save to localStorage
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                
+                console.log('✅ Profile saved:', currentUser.profile);
+                
+                // Close setup modal
+                const setupModal = document.getElementById('profileSetupWizard');
+                if (setupModal) {
+                    setupModal.classList.remove('active');
+                    setupModal.style.display = 'none';
+                }
+                
+                // Populate form with new profile data
+                populateFormWithProfile(currentUser.profile);
+                
+                alert('🎉 Profile setup completed! You can now use all app features.');
+            }
+        }
+
+        function populateFormWithProfile(profile) {
+            console.log('📋 Populating form with profile data...');
+            
+            const fieldMapping = {
+                'age': profile.age,
+                'gender': profile.gender,
+                'height': profile.height,
+                'weight': profile.weight,
+                'activityLevel': profile.activityLevel
+            };
+            
+            Object.keys(fieldMapping).forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element && fieldMapping[fieldId]) {
+                    element.value = fieldMapping[fieldId];
+                }
+            });
+        }
+
+        function getCurrentUserData() {
+            try {
+                const userData = localStorage.getItem('currentUser');
+                return userData ? JSON.parse(userData) : null;
+            } catch (error) {
+                console.error('Error getting user data:', error);
+                return null;
+            }
         }
         
         // Initialize fixes when DOM is ready
