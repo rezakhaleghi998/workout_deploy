@@ -33,6 +33,10 @@ python manage.py migrate --noinput
 
 echo "✅ Database migrations completed!"
 
+# Create test user for production
+echo "👤 Creating test user..."
+python create_test_user.py
+
 echo "✅ Build completed successfully!"
 
 # Clean up temporary files
