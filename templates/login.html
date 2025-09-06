@@ -189,6 +189,10 @@
             <div class="register-link">
                 <p>Don't have an account? <a href="#" id="registerLink">Create Account</a></p>
             </div>
+            
+            <div class="register-link">
+                <p>Or <a href="/" style="color: #28a745;">Skip Login & Continue as Guest</a></p>
+            </div>
         </form>
 
         <!-- Demo Credentials -->
@@ -239,9 +243,8 @@
                     localStorage.setItem('currentUser', JSON.stringify(data.user));
                     localStorage.setItem('authToken', data.token);
                     
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
+                    // Immediate redirect to main page
+                    window.location.replace('/');
                 } else {
                     showError(data.error || 'Invalid username or password');
                 }
