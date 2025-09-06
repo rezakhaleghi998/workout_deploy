@@ -2611,12 +2611,12 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.3);
             min-width: 200px;
-            z-index: 100;
+            z-index: 1000;
             margin-top: 8px;
         }
 
         .user-dropdown.active {
-            display: block;
+            display: block !important;
         }
 
         .user-dropdown-item {
@@ -10127,14 +10127,29 @@
         }
         
         function setupUserInteractions() {
+            console.log('🔧 Setting up user interactions...');
+            
             // User dropdown toggle
             const userInfo = document.getElementById('userInfo');
             const userDropdown = document.getElementById('userDropdown');
             
+            console.log('🔍 User elements found:', {
+                userInfo: !!userInfo,
+                userDropdown: !!userDropdown
+            });
+            
             if (userInfo && userDropdown) {
                 userInfo.addEventListener('click', function(e) {
                     e.stopPropagation();
+                    console.log('👆 User info clicked, toggling dropdown...');
                     userDropdown.classList.toggle('active');
+                    console.log('📋 Dropdown active state:', userDropdown.classList.contains('active'));
+                });
+                console.log('✅ User dropdown click handler attached');
+            } else {
+                console.error('❌ User elements not found:', {
+                    userInfo: userInfo,
+                    userDropdown: userDropdown
                 });
             }
             
@@ -10147,6 +10162,19 @@
             const editProfileBtn = document.getElementById('editProfileBtn');
             const viewStatsBtn = document.getElementById('viewStatsBtn');
             const exportDataBtn = document.getElementById('exportDataBtn');
+            
+            // Debug: Force show dropdown for testing
+            console.log('🔍 Testing dropdown visibility...');
+            if (userDropdown) {
+                setTimeout(() => {
+                    userDropdown.classList.add('active');
+                    console.log('🧪 Test: Dropdown should be visible now');
+                    setTimeout(() => {
+                        userDropdown.classList.remove('active');
+                        console.log('🧪 Test: Dropdown hidden again');
+                    }, 2000);
+                }, 1000);
+            }
             
             if (editProfileBtn) editProfileBtn.addEventListener('click', openProfileViewModal);
             if (viewStatsBtn) viewStatsBtn.addEventListener('click', showUserStats);
