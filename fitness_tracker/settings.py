@@ -106,7 +106,6 @@ if DATABASE_URL:
             'OPTIONS': {
                 'sslmode': 'require',
                 'connect_timeout': 30,
-                'options': '-c default_transaction_isolation=read_committed'
             },
         })
         
