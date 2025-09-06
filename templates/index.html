@@ -10330,45 +10330,62 @@
         }
 
         // Load and display profile in view modal
-        async function loadAndDisplayProfile() {
+        // Load and display profile in view modal
+        function loadAndDisplayProfile() {
+            console.log('🔍 Loading and displaying profile...');
+            
             try {
-                const token = localStorage.getItem('authToken');
-                const response = await fetch('/api/profile/', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Token ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (response.ok) {
-                    const profileData = await response.json();
-                    displayProfileInViewModal(profileData);
+                const currentUser = getCurrentUserData();
+                if (currentUser && currentUser.profile) {
+                    console.log('✅ User profile found, displaying...');
+                    displayProfileInViewModal(currentUser);
                 } else {
-                    console.error('Failed to load profile');
+                    console.log('⚠️ No user profile found');
+                    // Show default empty state
+                    const container = document.getElementById('profileViewContent');
+                    if (container) {
+                        container.innerHTML = `
+                            <div class="profile-view-item">
+                                <div class="profile-view-label">Profile Status</div>
+                                <div class="profile-view-value">No profile data available</div>
+                            </div>
+                        `;
+                    }
                 }
             } catch (error) {
-                console.error('Error loading profile:', error);
+                console.error('❌ Error loading profile:', error);
             }
         }
 
         // Display profile data in view modal
-        function displayProfileInViewModal(profileData) {
+        function displayProfileInViewModal(userData) {
+            console.log('📊 Displaying profile data:', userData);
+            
             const container = document.getElementById('profileViewContent');
-            if (!container) return;
+            if (!container) {
+                console.error('❌ Profile view content container not found');
+                return;
+            }
 
-            const age = profileData.age || 'Not set';
-            const height = profileData.height ? `${profileData.height}cm` : 'Not set';
-            const weight = profileData.weight ? `${profileData.weight}kg` : 'Not set';
-            const fitnessLevel = profileData.fitness_level || 'beginner';
-            const email = profileData.user?.email || 'No email';
-            const firstName = profileData.user?.first_name || 'Not set';
-            const lastName = profileData.user?.last_name || 'Not set';
-            const goals = profileData.goals || 'Not set';
-            const joinDate = new Date(profileData.user?.date_joined).toLocaleDateString();
-            const workoutCount = profileData.user?.total_workouts || 0;
+            // Extract user data from localStorage structure
+            const profile = userData.profile || {};
+            const age = profile.age || 'Not set';
+            const height = profile.height ? `${profile.height}cm` : 'Not set';
+            const weight = profile.weight ? `${profile.weight}kg` : 'Not set';
+            const gender = profile.gender || 'Not set';
+            const fitnessLevel = profile.fitnessLevel || 'Not set';
+            const goals = profile.goals || 'Not set';
+            const email = userData.email || 'Not set';
+            const firstName = userData.firstName || 'Not set';
+            const lastName = userData.lastName || 'Not set';
+            const joinDate = userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : 'Not available';
+            const workoutCount = userData.totalWorkouts || 0;
 
             container.innerHTML = `
+                <div class="profile-view-item">
+                    <div class="profile-view-label">Username</div>
+                    <div class="profile-view-value">${userData.username || 'Not set'}</div>
+                </div>
                 <div class="profile-view-item">
                     <div class="profile-view-label">First Name</div>
                     <div class="profile-view-value">${firstName}</div>
@@ -10384,6 +10401,10 @@
                 <div class="profile-view-item">
                     <div class="profile-view-label">Age</div>
                     <div class="profile-view-value">${age}</div>
+                </div>
+                <div class="profile-view-item">
+                    <div class="profile-view-label">Gender</div>
+                    <div class="profile-view-value">${gender}</div>
                 </div>
                 <div class="profile-view-item">
                     <div class="profile-view-label">Height</div>
@@ -10410,33 +10431,32 @@
                     <div class="profile-view-value">${goals}</div>
                 </div>
             `;
+            
+            console.log('✅ Profile data displayed successfully');
         }
 
         // Load profile data for editing
-        async function loadProfileForEditing() {
+        // Load profile data for editing
+        function loadProfileForEditing() {
+            console.log('✏️ Loading profile for editing...');
+            
             try {
-                const token = localStorage.getItem('authToken');
-                const response = await fetch('/api/profile/', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Token ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (response.ok) {
-                    const profileData = await response.json();
-                    populateEditForm(profileData);
+                const currentUser = getCurrentUserData();
+                if (currentUser && currentUser.profile) {
+                    console.log('✅ User profile found for editing');
+                    populateEditForm(currentUser);
                 } else {
-                    console.error('Failed to load profile for editing');
+                    console.log('⚠️ No user profile found for editing');
                 }
             } catch (error) {
-                console.error('Error loading profile for editing:', error);
+                console.error('❌ Error loading profile for editing:', error);
             }
         }
 
         // Populate edit form with current data
-        function populateEditForm(profileData) {
+        function populateEditForm(userData) {
+            console.log('📝 Populating edit form with user data:', userData);
+            
             const editFirstName = document.getElementById('editFirstName');
             const editLastName = document.getElementById('editLastName');
             const editEmail = document.getElementById('editEmail');
@@ -10446,14 +10466,19 @@
             const editFitnessLevel = document.getElementById('editFitnessLevel');
             const editGoals = document.getElementById('editGoals');
 
-            if (editFirstName) editFirstName.value = profileData.user?.first_name || '';
-            if (editLastName) editLastName.value = profileData.user?.last_name || '';
-            if (editEmail) editEmail.value = profileData.user?.email || '';
-            if (editAge) editAge.value = profileData.age || '';
-            if (editHeight) editHeight.value = profileData.height || '';
-            if (editWeight) editWeight.value = profileData.weight || '';
-            if (editFitnessLevel) editFitnessLevel.value = profileData.fitness_level || '';
-            if (editGoals) editGoals.value = profileData.goals || '';
+            // Extract data from localStorage structure
+            const profile = userData.profile || {};
+            
+            if (editFirstName) editFirstName.value = userData.firstName || '';
+            if (editLastName) editLastName.value = userData.lastName || '';
+            if (editEmail) editEmail.value = userData.email || '';
+            if (editAge) editAge.value = profile.age || '';
+            if (editHeight) editHeight.value = profile.height || '';
+            if (editWeight) editWeight.value = profile.weight || '';
+            if (editFitnessLevel) editFitnessLevel.value = profile.fitnessLevel || '';
+            if (editGoals) editGoals.value = profile.goals || '';
+            
+            console.log('✅ Edit form populated successfully');
         }
 
         // Legacy function for compatibility
@@ -10462,8 +10487,9 @@
             closeProfileViewModal();
         }
         
-        async function saveProfileChanges(e) {
+        function saveProfileChanges(e) {
             e.preventDefault();
+            console.log('💾 Saving profile changes...');
             
             const firstName = document.getElementById('editFirstName').value;
             const lastName = document.getElementById('editLastName').value;
@@ -10480,52 +10506,53 @@
             }
             
             try {
-                const token = localStorage.getItem('authToken');
+                // Get current user data
+                const currentUser = getCurrentUserData();
+                if (!currentUser) {
+                    alert('User not found. Please log in again.');
+                    return;
+                }
                 
-                // Calculate date of birth from age
-                const currentYear = new Date().getFullYear();
-                const birthYear = currentYear - parseInt(age);
-                const dateOfBirth = `${birthYear}-01-01`; // Simplified - use Jan 1st
-                
-                // Update both user and profile data in single call
-                const updateData = {
-                    user: {
-                        first_name: firstName,
-                        last_name: lastName,
-                        email: email
-                    },
-                    date_of_birth: dateOfBirth,
-                    height: parseInt(height),
-                    weight: parseInt(weight),
-                    fitness_level: fitnessLevel,
-                    goals: goals
+                // Update user data structure
+                const updatedUser = {
+                    ...currentUser,
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    profile: {
+                        ...currentUser.profile,
+                        age: parseInt(age),
+                        height: parseInt(height),
+                        weight: parseInt(weight),
+                        fitnessLevel: fitnessLevel,
+                        goals: goals,
+                        isComplete: true
+                    }
                 };
                 
-                const response = await fetch('/api/profile/', {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Token ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updateData)
-                });
-
-                if (response.ok) {
-                    const updatedProfile = await response.json();
-                    
-                    // Update the display with new profile data
-                    updateUserProfileDisplay(updatedProfile);
-                    
-                    alert('Profile updated successfully!');
-                    closeProfileEditModal();
-                } else {
-                    const errorData = await response.json();
-                    console.error('Profile update error:', errorData);
-                    alert('Failed to update profile. Please try again.');
+                // Save to localStorage
+                localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+                
+                // Update the database if available
+                if (window.fitnessDatabase) {
+                    window.fitnessDatabase.updateUser(updatedUser.id, updatedUser);
                 }
+                
+                console.log('✅ Profile updated successfully');
+                alert('Profile updated successfully!');
+                
+                // Close modal and refresh display
+                closeProfileEditModal();
+                closeProfileViewModal();
+                
+                // Update form fields with new data (if in self mode)
+                if (currentAnalysisMode === 'self') {
+                    populateUserProfile(updatedUser);
+                }
+                
             } catch (error) {
-                console.error('Error updating profile:', error);
-                alert('Failed to update profile. Please check your connection.');
+                console.error('❌ Error saving profile:', error);
+                alert('Failed to update profile. Please try again.');
             }
         }
         
