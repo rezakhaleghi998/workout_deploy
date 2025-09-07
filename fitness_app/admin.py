@@ -1,52 +1,342 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
-from django.db.models import Count, Avg
+from django.db.models import Count, Avg, Sum
+from django.http import HttpResponse
+from django.utils import timezone
+import csv
+from datetime import datetime, timedelta
 from .models import (
-    User, UserProfile, WorkoutSession, PerformanceMetrics, UserRanking, Achievement,
+    User, UserProfile, WorkoutSession, PerformanceMetric, PerformanceMetrics, UserRanking, Achievement,
     WorkoutAnalysis, FitnessPerformanceIndex, WellnessPlan
 )
 
-# ============ USER ADMIN ============
+# ============ RAILWAY-OPTIMIZED USER ADMIN ============
 
 @admin.register(User)
-class UserAdmin(BaseUserAdmin):
-    """Admin interface for User model"""
-    list_display = ['username', 'email', 'first_name', 'last_name', 'total_workouts', 'get_total_analyses', 'is_active', 'date_joined']
-    list_filter = ['is_active', 'is_staff', 'date_joined']
+class CustomUserAdmin(BaseUserAdmin):
+    """Railway-optimized admin interface for User model"""
+    
+    list_display = [
+        'username', 'email', 'get_full_name', 'fitness_level', 
+        'total_workouts', 'total_calories_burned', 'get_fitness_score',
+        'get_bmi_status', 'is_active', 'date_joined'
+    ]
+    list_filter = [
+        'fitness_level', 'is_active', 'is_staff', 'date_joined', 
+        'total_workouts'
+    ]
     search_fields = ['username', 'email', 'first_name', 'last_name']
     ordering = ['-date_joined']
+    list_per_page = 25
     
     fieldsets = BaseUserAdmin.fieldsets + (
-        ('Fitness Info', {'fields': ('total_workouts',)}),
+        ('Fitness Profile', {
+            'fields': (
+                'height', 'weight', 'age', 'fitness_level',
+                'total_workouts', 'total_calories_burned'
+            ),
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
     )
-    readonly_fields = ['total_workouts']
     
-    def get_total_analyses(self, obj):
-        return obj.workout_analyses.count()
-    get_total_analyses.short_description = 'Total Analyses'
-    get_total_analyses.admin_order_field = 'workout_analyses__count'
+    readonly_fields = BaseUserAdmin.readonly_fields + [
+        'total_workouts', 'total_calories_burned', 'created_at', 'updated_at'
+    ]
+    
+    actions = ['export_users_csv', 'update_user_stats']
+    
+    def get_fitness_score(self, obj):
+        """Display fitness score with color coding"""
+        score = obj.fitness_score
+        if score >= 80:
+            color = 'green'
+        elif score >= 60:
+            color = 'orange'
+        else:
+            color = 'red'
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color, score
+        )
+    get_fitness_score.short_description = 'Fitness Score'
+    get_fitness_score.admin_order_field = 'total_workouts'
+    
+    def get_bmi_status(self, obj):
+        """Display BMI with status"""
+        bmi = obj.bmi
+        if bmi is None:
+            return 'N/A'
+        
+        if 18.5 <= bmi <= 24.9:
+            status = 'Normal'
+            color = 'green'
+        elif 25 <= bmi <= 29.9:
+            status = 'Overweight'
+            color = 'orange'
+        else:
+            status = 'Obese' if bmi >= 30 else 'Underweight'
+            color = 'red'
+            
+        return format_html(
+            '<span style="color: {};">{:.1f} ({})</span>',
+            color, bmi, status
+        )
+    get_bmi_status.short_description = 'BMI Status'
+    
+    def export_users_csv(self, request, queryset):
+        """Export selected users to CSV"""
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="users_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Username', 'Email', 'Full Name', 'Fitness Level', 
+            'Height', 'Weight', 'BMI', 'Total Workouts', 
+            'Total Calories', 'Fitness Score', 'Date Joined'
+        ])
+        
+        for user in queryset:
+            writer.writerow([
+                user.username,
+                user.email,
+                user.get_full_name(),
+                user.fitness_level,
+                user.height or '',
+                user.weight or '',
+                user.bmi or '',
+                user.total_workouts,
+                user.total_calories_burned,
+                user.fitness_score,
+                user.date_joined.strftime('%Y-%m-%d')
+            ])
+            
+        return response
+    export_users_csv.short_description = "Export selected users to CSV"
+    
+    def update_user_stats(self, request, queryset):
+        """Update workout statistics for selected users"""
+        for user in queryset:
+            user.update_workout_stats()
+        
+        self.message_user(
+            request,
+            f"Updated statistics for {queryset.count()} users."
+        )
+    update_user_stats.short_description = "Update workout statistics"
 
-# ============ PROFILE ADMIN ============
-
-@admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
-    """Admin interface for UserProfile model"""
-    list_display = ['user', 'fitness_level', 'height', 'weight']
-    list_filter = ['fitness_level', 'created_at']
-    search_fields = ['user__username', 'user__email']
-    ordering = ['-created_at']
-
-# ============ WORKOUT ADMIN ============
+# ============ RAILWAY WORKOUT SESSION ADMIN ============
 
 @admin.register(WorkoutSession)
 class WorkoutSessionAdmin(admin.ModelAdmin):
-    """Admin interface for WorkoutSession model"""
-    list_display = ['user', 'workout_type', 'date', 'duration', 'intensity', 'calories_burned']
-    list_filter = ['workout_type', 'intensity', 'date']
-    search_fields = ['user__username', 'workout_type', 'notes']
+    """Railway-optimized admin interface for WorkoutSession model"""
+    
+    list_display = [
+        'get_user_link', 'workout_type', 'duration_minutes', 
+        'calories_burned', 'intensity', 'performance_rating',
+        'get_efficiency_score', 'date'
+    ]
+    list_filter = [
+        'workout_type', 'intensity', 'performance_rating', 
+        'date', 'user__fitness_level'
+    ]
+    search_fields = [
+        'user__username', 'user__email', 'workout_type', 'notes'
+    ]
     ordering = ['-date']
     date_hierarchy = 'date'
+    list_per_page = 30
+    
+    autocomplete_fields = ['user']
+    
+    fieldsets = (
+        ('Workout Details', {
+            'fields': (
+                'user', 'workout_type', 'duration_minutes', 
+                'calories_burned', 'intensity'
+            )
+        }),
+        ('Performance Metrics', {
+            'fields': (
+                'heart_rate_avg', 'performance_rating'
+            )
+        }),
+        ('Additional Info', {
+            'fields': ('notes',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['export_workouts_csv', 'calculate_weekly_summary']
+    
+    def get_user_link(self, obj):
+        """Display user as clickable link"""
+        return format_html(
+            '<a href="/admin/fitness_app/user/{}/change/">{}</a>',
+            obj.user.id, obj.user.username
+        )
+    get_user_link.short_description = 'User'
+    get_user_link.admin_order_field = 'user__username'
+    
+    def get_efficiency_score(self, obj):
+        """Calculate and display workout efficiency"""
+        if obj.duration_minutes > 0:
+            efficiency = obj.calories_burned / obj.duration_minutes
+            if efficiency >= 10:
+                color = 'green'
+            elif efficiency >= 7:
+                color = 'orange'
+            else:
+                color = 'red'
+                
+            return format_html(
+                '<span style="color: {};">{:.1f} cal/min</span>',
+                color, efficiency
+            )
+        return 'N/A'
+    get_efficiency_score.short_description = 'Efficiency'
+    
+    def export_workouts_csv(self, request, queryset):
+        """Export selected workouts to CSV"""
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="workouts_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'User', 'Date', 'Workout Type', 'Duration (min)', 
+            'Calories Burned', 'Intensity', 'Heart Rate', 
+            'Performance Rating', 'Efficiency (cal/min)', 'Notes'
+        ])
+        
+        for workout in queryset:
+            efficiency = workout.calories_burned / workout.duration_minutes if workout.duration_minutes > 0 else 0
+            writer.writerow([
+                workout.user.username,
+                workout.date.strftime('%Y-%m-%d %H:%M'),
+                workout.workout_type,
+                workout.duration_minutes,
+                workout.calories_burned,
+                workout.intensity,
+                workout.heart_rate_avg or '',
+                workout.performance_rating,
+                f"{efficiency:.1f}",
+                workout.notes
+            ])
+            
+        return response
+    export_workouts_csv.short_description = "Export selected workouts to CSV"
+
+# ============ RAILWAY PERFORMANCE METRICS ADMIN ============
+
+@admin.register(PerformanceMetric)
+class PerformanceMetricAdmin(admin.ModelAdmin):
+    """Railway-optimized admin interface for PerformanceMetric model"""
+    
+    list_display = [
+        'get_user_link', 'date', 'weight', 'get_bmi_display',
+        'body_fat_percentage', 'performance_index', 'get_health_status'
+    ]
+    list_filter = ['date', 'user__fitness_level']
+    search_fields = ['user__username', 'user__email']
+    ordering = ['-date']
+    date_hierarchy = 'date'
+    list_per_page = 25
+    
+    autocomplete_fields = ['user']
+    
+    fieldsets = (
+        ('Basic Metrics', {
+            'fields': ('user', 'date', 'weight')
+        }),
+        ('Body Composition', {
+            'fields': ('body_fat_percentage', 'muscle_mass')
+        }),
+        ('Health Metrics', {
+            'fields': (
+                'resting_heart_rate', 'blood_pressure_systolic', 
+                'blood_pressure_diastolic'
+            )
+        }),
+        ('Performance', {
+            'fields': ('performance_index',)
+        }),
+    )
+    
+    actions = ['export_metrics_csv', 'calculate_performance_index']
+    
+    def get_user_link(self, obj):
+        """Display user as clickable link"""
+        return format_html(
+            '<a href="/admin/fitness_app/user/{}/change/">{}</a>',
+            obj.user.id, obj.user.username
+        )
+    get_user_link.short_description = 'User'
+    get_user_link.admin_order_field = 'user__username'
+    
+    def get_bmi_display(self, obj):
+        """Display BMI with color coding"""
+        bmi = obj.bmi
+        if bmi is None:
+            return 'N/A'
+            
+        if 18.5 <= bmi <= 24.9:
+            color = 'green'
+            status = 'Normal'
+        elif 25 <= bmi <= 29.9:
+            color = 'orange'
+            status = 'Overweight'
+        else:
+            color = 'red'
+            status = 'Obese' if bmi >= 30 else 'Underweight'
+            
+        return format_html(
+            '<span style="color: {};">{:.1f} ({})</span>',
+            color, bmi, status
+        )
+    get_bmi_display.short_description = 'BMI'
+    
+    def get_health_status(self, obj):
+        """Display overall health status"""
+        score = obj.performance_index
+        if score >= 80:
+            status = 'Excellent'
+            color = 'green'
+        elif score >= 60:
+            status = 'Good'
+            color = 'blue'
+        elif score >= 40:
+            status = 'Fair'
+            color = 'orange'
+        else:
+            status = 'Poor'
+            color = 'red'
+            
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color, status
+        )
+    get_health_status.short_description = 'Health Status'
+    
+    def calculate_performance_index(self, request, queryset):
+        """Recalculate performance index for selected metrics"""
+        updated = 0
+        for metric in queryset:
+            metric.calculate_performance_index()
+            metric.save()
+            updated += 1
+            
+        self.message_user(
+            request,
+            f"Updated performance index for {updated} records."
+        )
+    calculate_performance_index.short_description = "Recalculate performance index"
+
+# ============ EXISTING ADMIN REGISTRATIONS ============
+
+# Keep existing admin registrations for other models
 
 # ============ PERFORMANCE ADMIN ============
 

@@ -4,20 +4,48 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 import json
 
-# ============ USER MODELS ============
+# ============ RAILWAY-OPTIMIZED USER MODELS ============
 
 class User(AbstractUser):
-    """Extended User model with fitness tracking capabilities"""
+    """Railway-optimized User model with fitness tracking capabilities"""
 
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, db_index=True)
+    height = models.FloatField(
+        null=True, 
+        blank=True, 
+        validators=[MinValueValidator(50), MaxValueValidator(300)],
+        help_text="Height in centimeters"
+    )
+    weight = models.FloatField(
+        null=True, 
+        blank=True, 
+        validators=[MinValueValidator(20), MaxValueValidator(500)],
+        help_text="Weight in kilograms"
+    )
+    age = models.IntegerField(
+        null=True, 
+        blank=True, 
+        validators=[MinValueValidator(13), MaxValueValidator(120)]
+    )
+    fitness_level = models.CharField(
+        max_length=20, 
+        choices=[
+            ('beginner', 'Beginner'),
+            ('intermediate', 'Intermediate'), 
+            ('advanced', 'Advanced'),
+            ('expert', 'Expert')
+        ], 
+        default='beginner'
+    )
     total_workouts = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
+    total_calories_burned = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email']
 
-    # Fix the reverse accessor conflicts
+    # Fix the reverse accessor conflicts for Railway
     groups = models.ManyToManyField(
         'auth.Group',
         verbose_name='groups',
@@ -35,18 +63,231 @@ class User(AbstractUser):
         related_query_name='fitness_user',
     )
 
+    class Meta:
+        db_table = 'fitness_users'
+        indexes = [
+            models.Index(fields=['email']),
+            models.Index(fields=['fitness_level']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['username', 'email']),
+        ]
+
     def __str__(self):
-        return self.username
+        return f"{self.username} ({self.email})"
 
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
 
-    def update_workout_count(self):
-        self.total_workouts = self.workout_sessions.count()
-        self.save()
+    def update_workout_stats(self):
+        """Update workout statistics for Railway analytics"""
+        workout_sessions = self.workout_sessions.all()
+        self.total_workouts = workout_sessions.count()
+        self.total_calories_burned = sum(
+            session.calories_burned for session in workout_sessions
+        )
+        self.save(update_fields=['total_workouts', 'total_calories_burned'])
+
+    @property
+    def bmi(self):
+        """Calculate BMI if height and weight are available"""
+        if self.height and self.weight:
+            height_m = self.height / 100  # Convert cm to meters
+            return round(self.weight / (height_m ** 2), 2)
+        return None
+
+    @property
+    def fitness_score(self):
+        """Calculate overall fitness score for Railway dashboard"""
+        if self.total_workouts == 0:
+            return 0
+        
+        # Base score from workout frequency
+        base_score = min(self.total_workouts * 2, 50)
+        
+        # Bonus for consistency (recent activity)
+        recent_workouts = self.workout_sessions.filter(
+            date__gte=timezone.now() - timezone.timedelta(days=30)
+        ).count()
+        consistency_bonus = min(recent_workouts * 5, 30)
+        
+        # Fitness level bonus
+        level_bonus = {
+            'beginner': 0,
+            'intermediate': 10,
+            'advanced': 15,
+            'expert': 20
+        }.get(self.fitness_level, 0)
+        
+        return min(base_score + consistency_bonus + level_bonus, 100)
+
+class WorkoutSession(models.Model):
+    """Railway-optimized workout session tracking"""
+    
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='workout_sessions',
+        db_index=True
+    )
+    date = models.DateTimeField(auto_now_add=True, db_index=True)
+    workout_type = models.CharField(max_length=50, db_index=True)
+    duration_minutes = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(480)]
+    )
+    calories_burned = models.IntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(5000)]
+    )
+    intensity = models.CharField(
+        max_length=20, 
+        choices=[
+            ('low', 'Low'),
+            ('moderate', 'Moderate'),
+            ('high', 'High'),
+            ('extreme', 'Extreme')
+        ],
+        default='moderate'
+    )
+    heart_rate_avg = models.IntegerField(
+        null=True, 
+        blank=True,
+        validators=[MinValueValidator(60), MaxValueValidator(220)]
+    )
+    notes = models.TextField(blank=True)
+    performance_rating = models.IntegerField(
+        default=5,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Rate your performance (1-10)"
+    )
+
+    class Meta:
+        db_table = 'workout_sessions'
+        ordering = ['-date']
+        indexes = [
+            models.Index(fields=['user', 'date']),
+            models.Index(fields=['workout_type']),
+            models.Index(fields=['date']),
+            models.Index(fields=['user', 'workout_type']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.workout_type} ({self.date.strftime('%Y-%m-%d')})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Update user stats when workout is saved
+        self.user.update_workout_stats()
+
+class PerformanceMetric(models.Model):
+    """Railway-optimized performance tracking"""
+    
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='performance_metrics',
+        db_index=True
+    )
+    date = models.DateField(auto_now_add=True, db_index=True)
+    weight = models.FloatField(
+        validators=[MinValueValidator(20), MaxValueValidator(500)]
+    )
+    body_fat_percentage = models.FloatField(
+        null=True, 
+        blank=True, 
+        validators=[MinValueValidator(3), MaxValueValidator(50)]
+    )
+    muscle_mass = models.FloatField(
+        null=True, 
+        blank=True, 
+        validators=[MinValueValidator(10), MaxValueValidator(200)]
+    )
+    performance_index = models.FloatField(
+        default=0.0, 
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    resting_heart_rate = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(40), MaxValueValidator(120)]
+    )
+    blood_pressure_systolic = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(80), MaxValueValidator(200)]
+    )
+    blood_pressure_diastolic = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(50), MaxValueValidator(120)]
+    )
+
+    class Meta:
+        db_table = 'performance_metrics'
+        unique_together = ['user', 'date']
+        ordering = ['-date']
+        indexes = [
+            models.Index(fields=['user', 'date']),
+            models.Index(fields=['date']),
+            models.Index(fields=['user', 'performance_index']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - Performance ({self.date})"
+
+    @property
+    def bmi(self):
+        """Calculate BMI using current weight and user height"""
+        if self.user.height and self.weight:
+            height_m = self.user.height / 100
+            return round(self.weight / (height_m ** 2), 2)
+        return None
+
+    def calculate_performance_index(self):
+        """Calculate comprehensive performance index for Railway analytics"""
+        index = 0
+        
+        # BMI component (30% of score)
+        bmi = self.bmi
+        if bmi:
+            if 18.5 <= bmi <= 24.9:
+                index += 30
+            elif 25 <= bmi <= 29.9:
+                index += 20
+            else:
+                index += 10
+                
+        # Body fat component (25% of score)
+        if self.body_fat_percentage:
+            if 6 <= self.body_fat_percentage <= 24:
+                index += 25
+            elif 25 <= self.body_fat_percentage <= 31:
+                index += 15
+            else:
+                index += 5
+                
+        # Resting heart rate component (20% of score)
+        if self.resting_heart_rate:
+            if 60 <= self.resting_heart_rate <= 70:
+                index += 20
+            elif 71 <= self.resting_heart_rate <= 80:
+                index += 15
+            else:
+                index += 10
+                
+        # Recent workout performance (25% of score)
+        recent_workouts = self.user.workout_sessions.filter(
+            date__gte=timezone.now() - timezone.timedelta(days=30)
+        )
+        if recent_workouts.exists():
+            avg_rating = recent_workouts.aggregate(
+                avg_rating=models.Avg('performance_rating')
+            )['avg_rating']
+            index += (avg_rating / 10) * 25
+            
+        self.performance_index = round(index, 2)
+        return self.performance_index
 
 class UserProfile(models.Model):
-    """Extended profile information for users"""
+    """Extended profile information for Railway dashboard"""
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     date_of_birth = models.DateField(null=True, blank=True)

@@ -32,10 +32,15 @@ CUSTOM_DOMAIN = os.environ.get('CUSTOM_DOMAIN')
 if CUSTOM_DOMAIN:
     ALLOWED_HOSTS.append(CUSTOM_DOMAIN)
 
-# Railway deployment
+# Railway deployment optimization
 RAILWAY_ENVIRONMENT_NAME = os.environ.get('RAILWAY_ENVIRONMENT_NAME')
+RAILWAY_SERVICE_NAME = os.environ.get('RAILWAY_SERVICE_NAME', 'workout-tracker')
 if RAILWAY_ENVIRONMENT_NAME:
-    ALLOWED_HOSTS.append('*')  # Allow all hosts on Railway
+    ALLOWED_HOSTS.extend([
+        f"{RAILWAY_SERVICE_NAME}.railway.app",
+        f"{RAILWAY_SERVICE_NAME}-production.railway.app",
+        "*.railway.app"
+    ])
 
 # ============ APPLICATION DEFINITION ============
 

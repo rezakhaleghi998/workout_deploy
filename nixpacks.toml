@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "nodejs-18_x"]
+nixPkgs = ["python312", "nodejs-18_x"]
 
 [phases.install]
 cmds = [
@@ -11,5 +11,8 @@ cmds = [
     "python manage.py collectstatic --noinput"
 ]
 
-[start]
+[phases.deploy]
 cmd = "python manage.py migrate && gunicorn fitness_tracker.wsgi:application --bind 0.0.0.0:$PORT"
+
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.12"
