@@ -95,7 +95,7 @@ if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(DATABASE_URL)
     }
-    print("✅ Using PostgreSQL database")
+    print("Using PostgreSQL database")
 else:
     # Development: SQLite
     DATABASES = {
@@ -104,7 +104,7 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-    print("📝 Using SQLite database for development")
+    print("Using SQLite database for development")
 
 # ============ AUTHENTICATION ============
 
