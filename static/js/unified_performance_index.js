@@ -527,15 +527,19 @@ class UnifiedPerformanceIndex {
             const currentEntry = history[history.length - 1];
             const previousEntry = previousEntries[previousEntries.length - 1];
             
-            const difference = currentEntry.score - previousEntry.score;
-            const percentChange = previousEntry.score > 0 ? 
-                ((difference / previousEntry.score) * 100).toFixed(1) : 0;
+            // Safety check: ensure scores are valid numbers
+            const currentScore = isNaN(currentEntry.score) ? 0 : currentEntry.score;
+            const previousScore = isNaN(previousEntry.score) ? 0 : previousEntry.score;
+            
+            const difference = currentScore - previousScore;
+            const percentChange = previousScore > 0 ? 
+                ((difference / previousScore) * 100).toFixed(1) : 0;
             
             return {
-                current: currentEntry.score,
-                previous: previousEntry.score,
-                difference,
-                percentChange: parseFloat(percentChange),
+                current: currentScore,
+                previous: previousScore,
+                difference: isNaN(difference) ? 0 : difference,
+                percentChange: isNaN(parseFloat(percentChange)) ? 0 : parseFloat(percentChange),
                 trend: difference > 0 ? 'improving' : difference < 0 ? 'declining' : 'stable'
             };
             
@@ -757,17 +761,33 @@ class UnifiedPerformanceIndex {
             if (indexData.periodData) {
                 if (indexData.periodData.weekly) {
                     const weekly = indexData.periodData.weekly;
-                    const sign = weekly.difference >= 0 ? '+' : '';
-                    this.safeUpdateElement('weeklyChange', `${sign}${weekly.difference.toFixed(1)}`);
-                    this.safeUpdateElement('weeklyPercent', `${sign}${weekly.percentChange}%`);
+                    const safeDifference = isNaN(weekly.difference) ? 0 : weekly.difference;
+                    const safePercent = isNaN(weekly.percentChange) ? 0 : weekly.percentChange;
+                    const sign = safeDifference >= 0 ? '+' : '';
+                    this.safeUpdateElement('weeklyChange', `${sign}${safeDifference.toFixed(1)}`);
+                    this.safeUpdateElement('weeklyPercent', `${sign}${safePercent}%`);
+                } else {
+                    this.safeUpdateElement('weeklyChange', '+0.0');
+                    this.safeUpdateElement('weeklyPercent', '+0%');
                 }
                 
                 if (indexData.periodData.monthly) {
                     const monthly = indexData.periodData.monthly;
-                    const sign = monthly.difference >= 0 ? '+' : '';
-                    this.safeUpdateElement('monthlyChange', `${sign}${monthly.difference.toFixed(1)}`);
-                    this.safeUpdateElement('monthlyPercent', `${sign}${monthly.percentChange}%`);
+                    const safeDifference = isNaN(monthly.difference) ? 0 : monthly.difference;
+                    const safePercent = isNaN(monthly.percentChange) ? 0 : monthly.percentChange;
+                    const sign = safeDifference >= 0 ? '+' : '';
+                    this.safeUpdateElement('monthlyChange', `${sign}${safeDifference.toFixed(1)}`);
+                    this.safeUpdateElement('monthlyPercent', `${sign}${safePercent}%`);
+                } else {
+                    this.safeUpdateElement('monthlyChange', '+0.0');
+                    this.safeUpdateElement('monthlyPercent', '+0%');
                 }
+            } else {
+                // Set default values when no period data exists
+                this.safeUpdateElement('weeklyChange', '+0.0');
+                this.safeUpdateElement('weeklyPercent', '+0%');
+                this.safeUpdateElement('monthlyChange', '+0.0');
+                this.safeUpdateElement('monthlyPercent', '+0%');
             }
             
             this.updateInsights(indexData);

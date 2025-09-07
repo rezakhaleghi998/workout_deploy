@@ -27,4 +27,9 @@ urlpatterns = [
     path('rankings/', views.user_rankings, name='user_rankings'),
     path('leaderboard/', views.leaderboard, name='leaderboard'),
     path('achievements/', views.user_achievements, name='achievements'),
+    
+    # Workout Analysis endpoints (for 14-page analysis data)
+    path('analysis/save/', views.save_workout_analysis, name='save_workout_analysis'),
+    path('analysis/history/', views.get_user_workout_analyses, name='get_user_workout_analyses'),
+    path('analysis/performance/', views.get_performance_analytics, name='get_performance_analytics'),
 ]
