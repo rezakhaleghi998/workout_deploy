@@ -4,6 +4,7 @@ Optimized for deployment on Render with PostgreSQL.
 """
 
 import os
+from decouple import config
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -15,20 +16,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '.onrender.com',
-    'workout-deploy.onrender.com',
-    os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
+    '.up.railway.app',
+    '.railway.app',
+    config('RENDER_EXTERNAL_HOSTNAME', default='')
 ]
 
 # Add your custom domain here
 CUSTOM_DOMAIN = os.environ.get('CUSTOM_DOMAIN')
 if CUSTOM_DOMAIN:
     ALLOWED_HOSTS.append(CUSTOM_DOMAIN)
+
+# Railway deployment
+RAILWAY_ENVIRONMENT_NAME = os.environ.get('RAILWAY_ENVIRONMENT_NAME')
+if RAILWAY_ENVIRONMENT_NAME:
+    ALLOWED_HOSTS.append('*')  # Allow all hosts on Railway
 
 # ============ APPLICATION DEFINITION ============
 
@@ -86,22 +93,48 @@ WSGI_APPLICATION = 'fitness_tracker.wsgi.application'
 
 # ============ DATABASE ============
 
-# Simple database configuration
+# Database configuration with robust error handling
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 if DATABASE_URL:
-    # Production: PostgreSQL
-    import dj_database_url
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL)
-    }
-    print("Using PostgreSQL database")
+    # Production: Use PostgreSQL via DATABASE_URL
+    try:
+        import dj_database_url
+        import psycopg2
+        
+        DATABASES = {
+            'default': dj_database_url.parse(DATABASE_URL, conn_max_age=60)
+        }
+        
+        # PostgreSQL specific settings for Render
+        DATABASES['default'].update({
+            'ENGINE': 'django.db.backends.postgresql',
+            'CONN_MAX_AGE': 60,
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {
+                'sslmode': 'require',
+                'connect_timeout': 30,
+                'options': '-c default_transaction_isolation=read_committed'
+            },
+        })
+        
+        print(f"✅ PostgreSQL database configured successfully")
+        print(f"Database: {DATABASES['default']['NAME']}")
+        
+    except ImportError as e:
+        print(f"❌ Database import error: {e}")
+        raise Exception(f"Failed to import required database modules: {e}")
+    except Exception as e:
+        print(f"❌ Database configuration error: {e}")
+        raise Exception(f"Failed to configure PostgreSQL database: {e}")
+        
 else:
-    # Development: SQLite
+    # Development: Use SQLite
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            'CONN_MAX_AGE': 0,
         }
     }
     print("Using SQLite database for development")
@@ -192,10 +225,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-# Use simple static files storage for deployment
-if not DEBUG:
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
