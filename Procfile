@@ -1,2 +1,1 @@
-web: python manage.py migrate && python manage.py railway_setup && gunicorn fitness_tracker.wsgi:application
-release: python manage.py migrate && python manage.py collectstatic --noinput --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --max-requests 1000 --preload
+web: python manage.py migrate && gunicorn fitness_tracker.wsgi:application --bind 0.0.0.0:$PORT

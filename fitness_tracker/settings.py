@@ -24,6 +24,7 @@ ALLOWED_HOSTS = [
     '.onrender.com',
     '.up.railway.app',
     '.railway.app',
+    'wellness.up.railway.app',  # Your specific Railway domain
     config('RENDER_EXTERNAL_HOSTNAME', default='')
 ]
 
@@ -278,3 +279,7 @@ LOGGING = {
         },
     },
 }
+
+# ============ RAILWAY DEPLOYMENT SETTINGS ============
+# Ensure PORT is set for Railway
+PORT = int(os.environ.get('PORT', 8000))
