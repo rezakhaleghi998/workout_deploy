@@ -136,10 +136,10 @@ class UnifiedPerformanceIndex {
         const intensity = this.calculateStandardizedIntensity(workoutHistory);
         
         return {
-            consistency: Math.round(Math.max(0, Math.min(100, consistency))),
-            performance: Math.round(Math.max(0, Math.min(100, performance))),
-            variety: Math.round(Math.max(0, Math.min(100, variety))),
-            intensity: Math.round(Math.max(0, Math.min(100, intensity)))
+            consistency: Math.round(Math.max(0, Math.min(100, isNaN(consistency) ? 0 : consistency))),
+            performance: Math.round(Math.max(0, Math.min(100, isNaN(performance) ? 0 : performance))),
+            variety: Math.round(Math.max(0, Math.min(100, isNaN(variety) ? 0 : variety))),
+            intensity: Math.round(Math.max(0, Math.min(100, isNaN(intensity) ? 0 : intensity)))
         };
     }
 
@@ -147,14 +147,21 @@ class UnifiedPerformanceIndex {
      * REBUILT: Calculate final score WITHOUT Improvement component
      */
     calculateStandardizedScore(components) {
-        const weightedScore = 
-            (components.consistency * this.weights.consistency) +    // 35%
-            (components.performance * this.weights.performance) +    // 35%
-            (components.variety * this.weights.variety) +            // 15%
-            (components.intensity * this.weights.intensity);         // 15%
+        // Safety check: ensure all components are valid numbers
+        const safeConsistency = isNaN(components.consistency) ? 0 : components.consistency;
+        const safePerformance = isNaN(components.performance) ? 0 : components.performance;
+        const safeVariety = isNaN(components.variety) ? 0 : components.variety;
+        const safeIntensity = isNaN(components.intensity) ? 0 : components.intensity;
         
-        // Ensure score is within 0-100 range
-        return Math.round(Math.max(0, Math.min(100, weightedScore)));
+        const weightedScore = 
+            (safeConsistency * this.weights.consistency) +    // 35%
+            (safePerformance * this.weights.performance) +    // 35%
+            (safeVariety * this.weights.variety) +            // 15%
+            (safeIntensity * this.weights.intensity);         // 15%
+        
+        // Ensure score is within 0-100 range and not NaN
+        const finalScore = isNaN(weightedScore) ? 0 : weightedScore;
+        return Math.round(Math.max(0, Math.min(100, finalScore)));
     }
 
     /**
