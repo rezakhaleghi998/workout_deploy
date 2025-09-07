@@ -45,8 +45,11 @@ class UnifiedPerformanceIndex {
      * REBUILT: Main calculation method with standardized formulas
      * Entry point for unified performance index calculation
      */
-    calculateIndex(userId = 'default') {
+    async calculateIndex(userId = 'default') {
         try {
+            // Sync with database first if available
+            await this.syncWithDatabase();
+            
             // Validate and get workout data
             const workoutHistory = this.getWorkoutHistory();
             const validatedData = this.validateMetricInputs(workoutHistory);
@@ -89,6 +92,30 @@ class UnifiedPerformanceIndex {
         } catch (error) {
             console.error('Error calculating unified performance index:', error);
             return this.getDefaultIndex();
+        }
+    }
+
+    /**
+     * Sync workout data from database to localStorage
+     */
+    async syncWithDatabase() {
+        try {
+            if (window.fitnessDatabase) {
+                const currentUser = window.fitnessDatabase.getCurrentUser();
+                if (currentUser) {
+                    const workouts = await window.fitnessDatabase.getWorkoutHistory(50);
+                    if (workouts && workouts.length > 0) {
+                        // Update localStorage with fresh database data
+                        localStorage.setItem('workoutHistory', JSON.stringify(workouts));
+                        console.log(`✅ Synced ${workouts.length} workouts from database`);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch (error) {
+            console.warn('Could not sync with database:', error);
+            return false;
         }
     }
 
@@ -632,6 +659,26 @@ class UnifiedPerformanceIndex {
 
     getWorkoutHistory() {
         try {
+            // Try to get data from database first
+            if (window.fitnessDatabase) {
+                const currentUser = window.fitnessDatabase.getCurrentUser();
+                if (currentUser) {
+                    // Fetch from database asynchronously
+                    window.fitnessDatabase.getWorkoutHistory(50).then(workouts => {
+                        if (workouts && workouts.length > 0) {
+                            // Update localStorage with fresh database data
+                            localStorage.setItem('workoutHistory', JSON.stringify(workouts));
+                            // Recalculate index with fresh data
+                            const indexData = this.calculateIndex('default');
+                            this.updateUIElements(indexData);
+                        }
+                    }).catch(error => {
+                        console.warn('Could not fetch from database, using localStorage:', error);
+                    });
+                }
+            }
+            
+            // Return localStorage data immediately (for synchronous operation)
             return JSON.parse(localStorage.getItem('workoutHistory') || '[]');
         } catch (error) {
             console.error('Error retrieving workout history:', error);

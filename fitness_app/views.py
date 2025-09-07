@@ -61,40 +61,23 @@ def login_view(request):
 @permission_classes([AllowAny])
 def register_user(request):
     """Register a new user"""
-    print(f"Registration attempt with data: {request.data}")
-    
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
-        try:
-            with transaction.atomic():
-                user = serializer.save()
-                print(f"User created successfully: {user.username}")
-                
-                # Create user profile
-                profile, created = UserProfile.objects.get_or_create(user=user)
-                print(f"Profile created: {created}")
-                
-                # Create user ranking
-                ranking, created = UserRanking.objects.get_or_create(user=user)
-                print(f"Ranking created: {created}")
-                
-                # Create auth token
-                token, created = Token.objects.get_or_create(user=user)
-                print(f"Token created: {created}")
-                
-                return Response({
-                    'user': UserSerializer(user).data,
-                    'token': token.key,
-                    'message': 'User registered successfully'
-                }, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            print(f"Registration error: {e}")
+        with transaction.atomic():
+            user = serializer.save()
+            # Create user profile
+            UserProfile.objects.get_or_create(user=user)
+            # Create user ranking
+            UserRanking.objects.get_or_create(user=user)
+            # Create auth token
+            token, created = Token.objects.get_or_create(user=user)
+            
             return Response({
-                'error': f'Registration failed: {str(e)}'
-            }, status=status.HTTP_400_BAD_REQUEST)
-    else:
-        print(f"Validation errors: {serializer.errors}")
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                'user': UserSerializer(user).data,
+                'token': token.key,
+                'message': 'User registered successfully'
+            }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -132,67 +115,110 @@ def logout_user(request):
         return Response({'error': 'Error logging out'}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])  # Allow unauthenticated access for demo mode
 @db_retry(max_retries=3, delay=1)
 def user_profile(request):
-    """Get or update user profile"""
+    """Get or update user profile with database retry logic"""
     try:
+        # For demo purposes, we'll use a default profile approach
+        # In production with authentication, this would use request.user
+        
         if request.method == 'GET':
-            # Get profile for the authenticated user
-            user = request.user
-            profile, created = UserProfile.objects.get_or_create(user=user)
-            
-            # Serialize the data
-            profile_data = {
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'total_workouts': user.total_workouts,
-                    'date_joined': user.date_joined.isoformat()
-                },
-                'age': profile.age,
-                'height': profile.height,
-                'weight': profile.weight,
-                'fitness_level': profile.fitness_level,
-                'goals': profile.goals,
-                'date_of_birth': profile.date_of_birth.isoformat() if profile.date_of_birth else None
-            }
-            
-            return Response(profile_data, status=status.HTTP_200_OK)
+            # Try to get or create a default profile for demo
+            try:
+                profile = UserProfile.objects.first()
+                if not profile:
+                    # Create a default profile for demo
+                    default_user, _ = User.objects.get_or_create(
+                        username='demo_user',
+                        defaults={
+                            'email': 'demo@example.com',
+                            'first_name': 'Demo',
+                            'last_name': 'User'
+                        }
+                    )
+                    profile, _ = UserProfile.objects.get_or_create(
+                        user=default_user,
+                        defaults={
+                            'height': None,
+                            'weight': None,
+                            'fitness_level': 'beginner',
+                            'goals': ''
+                        }
+                    )
+                
+                # Include user data in response
+                response_data = UserProfileSerializer(profile).data
+                response_data['user'] = {
+                    'username': profile.user.username,
+                    'first_name': profile.user.first_name,
+                    'last_name': profile.user.last_name,
+                    'email': profile.user.email
+                }
+                return Response(response_data)
+                
+            except Exception as e:
+                return Response({
+                    'error': f'Database connection failed: {str(e)}',
+                    'fallback_data': {
+                        'height': None,
+                        'weight': None,
+                        'fitness_level': 'beginner',
+                        'goals': '',
+                        'user': {
+                            'username': 'demo_user',
+                            'first_name': 'Demo',
+                            'last_name': 'User',
+                            'email': 'demo@example.com'
+                        }
+                    }
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         
         elif request.method == 'PUT':
-            # Update profile for the authenticated user
-            user = request.user
-            profile, created = UserProfile.objects.get_or_create(user=user)
-            
-            # Update user fields
-            user.first_name = request.data.get('first_name', user.first_name)
-            user.last_name = request.data.get('last_name', user.last_name)
-            user.email = request.data.get('email', user.email)
-            user.save()
-            
-            # Update profile fields
-            profile.height = request.data.get('height', profile.height)
-            profile.weight = request.data.get('weight', profile.weight)
-            profile.fitness_level = request.data.get('fitness_level', profile.fitness_level)
-            profile.goals = request.data.get('goals', profile.goals)
-            
-            # Handle date of birth
-            dob = request.data.get('date_of_birth')
-            if dob:
-                try:
-                    from datetime import datetime
-                    profile.date_of_birth = datetime.strptime(dob, '%Y-%m-%d').date()
-                except:
-                    pass
-            
-            profile.save()
-            
-            return Response({'message': 'Profile updated successfully'}, status=status.HTTP_200_OK)
-            
+            try:
+                # Get or create profile for demo
+                profile = UserProfile.objects.first()
+                if not profile:
+                    default_user, _ = User.objects.get_or_create(
+                        username='demo_user',
+                        defaults={
+                            'email': 'demo@example.com',
+                            'first_name': 'Demo',
+                            'last_name': 'User'
+                        }
+                    )
+                    profile, _ = UserProfile.objects.get_or_create(user=default_user)
+                
+                # Handle user data updates if provided
+                user_data = request.data.get('user', {})
+                if user_data:
+                    user_serializer = UserSerializer(profile.user, data=user_data, partial=True)
+                    if user_serializer.is_valid():
+                        user_serializer.save()
+                    else:
+                        return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Handle profile data updates
+                serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+                if serializer.is_valid():
+                    serializer.save()
+                    
+                    # Include user data in response
+                    response_data = serializer.data
+                    response_data['user'] = {
+                        'username': profile.user.username,
+                        'first_name': profile.user.first_name,
+                        'last_name': profile.user.last_name,
+                        'email': profile.user.email
+                    }
+                    return Response(response_data)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+            except Exception as e:
+                return Response({
+                    'error': f'Database save failed: {str(e)}'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
     except Exception as e:
         return Response({
             'error': f'Profile operation failed: {str(e)}'
