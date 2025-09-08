@@ -12,11 +12,7 @@ cmds = [
 ]
 
 [phases.deploy]
-cmd = "python manage.py migrate && gunicorn fitness_tracker.wsgi:application --bind 0.0.0.0:$PORT"
-
-[variables]
-NIXPACKS_PYTHON_VERSION = "3.12"
-PORT = "8000"xPkgs = ["python312", "nodejs-18_x"]
+cmd = "bash railway_start.sh"xPkgs = ["python312", "nodejs-18_x"]
 
 [phases.install]
 cmds = [

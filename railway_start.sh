@@ -21,6 +21,6 @@ else:
     print('✅ Admin user already exists')
 "
 
-# Start the server
+# Start the server with correct syntax
 echo "🚀 Starting Gunicorn server..."
-exec gunicorn fitness_tracker.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+exec gunicorn fitness_tracker.wsgi:application --bind 0.0.0.0:${PORT:-8000}
