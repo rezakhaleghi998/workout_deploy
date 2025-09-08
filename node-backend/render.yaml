@@ -1,0 +1,33 @@
+services:
+  # Main API Service
+  - type: web
+    name: fitness-tracker-api
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: MONGODB_URI
+        fromDatabase:
+          name: fitness-tracker-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@fitness-tracker.com
+      - key: ADMIN_PASSWORD
+        generateValue: true
+
+databases:
+  # MongoDB Database
+  - name: fitness-tracker-db
+    databaseName: fitness_tracker
+    user: fitness_user
+    plan: free

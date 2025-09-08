@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Tracker - Admin Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-dumbbell"></i> Fitness Admin</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="nav-item active">
+                        <a href="#dashboard" class="nav-link" data-section="dashboard">
+                            <i class="fas fa-chart-bar"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#users" class="nav-link" data-section="users">
+                            <i class="fas fa-users"></i> Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#workouts" class="nav-link" data-section="workouts">
+                            <i class="fas fa-running"></i> Workouts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#analytics" class="nav-link" data-section="analytics">
+                            <i class="fas fa-analytics"></i> Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#system" class="nav-link" data-section="system">
+                            <i class="fas fa-cog"></i> System
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-shield"></i>
+                    <span id="adminUsername">Admin User</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <h1 id="pageTitle">Dashboard</h1>
+                    <div class="breadcrumb">
+                        <span id="breadcrumbText">Home / Dashboard</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="header-actions">
+                        <button class="refresh-btn" onclick="refreshData()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <div class="notifications">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-count">3</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Sections -->
+            <div class="content-wrapper">
+                <!-- Dashboard Section -->
+                <section id="dashboard-section" class="content-section active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="totalUsers">0</h3>
+                                <p>Total Users</p>
+                                <span class="stat-change positive" id="userGrowth">+5.2%</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-running"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="totalWorkouts">0</h3>
+                                <p>Total Workouts</p>
+                                <span class="stat-change positive" id="workoutGrowth">+12.3%</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-fire"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="totalCalories">0</h3>
+                                <p>Calories Burned</p>
+                                <span class="stat-change positive" id="calorieGrowth">+8.7%</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="avgDuration">0</h3>
+                                <p>Avg Duration (min)</p>
+                                <span class="stat-change neutral" id="durationChange">+2.1%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-charts">
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3>User Activity (Last 7 Days)</h3>
+                            </div>
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3>Workout Types Distribution</h3>
+                            </div>
+                            <canvas id="workoutTypesChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-tables">
+                        <div class="table-container">
+                            <div class="table-header">
+                                <h3>Top Performers</h3>
+                                <a href="#users" class="view-all-link" onclick="showSection('users')">View All</a>
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>User</th>
+                                            <th>Workouts</th>
+                                            <th>Calories</th>
+                                            <th>Last Active</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="topPerformersTable">
+                                        <!-- Dynamic content -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <div class="table-header">
+                                <h3>Recent Registrations</h3>
+                            </div>
+                            <div class="registration-trend">
+                                <canvas id="registrationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Users Section -->
+                <section id="users-section" class="content-section">
+                    <div class="section-header">
+                        <h2>User Management</h2>
+                        <div class="section-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="userSearch" placeholder="Search users...">
+                            </div>
+                            <select id="userStatusFilter">
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <select id="userRoleFilter">
+                                <option value="all">All Roles</option>
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                                <option value="moderator">Moderator</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <input type="checkbox" id="selectAllUsers">
+                                        </th>
+                                        <th onclick="sortUsers('username')">Username <i class="fas fa-sort"></i></th>
+                                        <th onclick="sortUsers('email')">Email <i class="fas fa-sort"></i></th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th onclick="sortUsers('totalWorkouts')">Workouts <i class="fas fa-sort"></i></th>
+                                        <th onclick="sortUsers('createdAt')">Joined <i class="fas fa-sort"></i></th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTable">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination" id="usersPagination">
+                            <!-- Dynamic pagination -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Workouts Section -->
+                <section id="workouts-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Workout Management</h2>
+                        <div class="section-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="workoutSearch" placeholder="Search workouts...">
+                            </div>
+                            <select id="workoutTypeFilter">
+                                <option value="all">All Types</option>
+                                <option value="cardio">Cardio</option>
+                                <option value="strength">Strength</option>
+                                <option value="mixed">Mixed</option>
+                                <option value="flexibility">Flexibility</option>
+                                <option value="sports">Sports</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <input type="date" id="workoutDateFilter">
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <input type="checkbox" id="selectAllWorkouts">
+                                        </th>
+                                        <th>Workout</th>
+                                        <th>User</th>
+                                        <th>Type</th>
+                                        <th>Duration</th>
+                                        <th>Calories</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="workoutsTable">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination" id="workoutsPagination">
+                            <!-- Dynamic pagination -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Analytics Section -->
+                <section id="analytics-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Advanced Analytics</h2>
+                        <div class="section-actions">
+                            <select id="analyticsTimeRange">
+                                <option value="week">Last Week</option>
+                                <option value="month" selected>Last Month</option>
+                                <option value="quarter">Last Quarter</option>
+                                <option value="year">Last Year</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="analytics-grid">
+                        <div class="analytics-card">
+                            <h3>User Engagement</h3>
+                            <canvas id="engagementChart"></canvas>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Popular Exercises</h3>
+                            <div id="popularExercises" class="exercise-list">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Peak Activity Hours</h3>
+                            <canvas id="peakHoursChart"></canvas>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Platform Growth</h3>
+                            <canvas id="growthChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- System Section -->
+                <section id="system-section" class="content-section">
+                    <div class="section-header">
+                        <h2>System Information</h2>
+                        <div class="section-actions">
+                            <button class="btn btn-primary" onclick="refreshSystemData()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="system-grid">
+                        <div class="system-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-server"></i> Server Status</h3>
+                                <span class="status-badge healthy" id="serverStatus">Healthy</span>
+                            </div>
+                            <div class="card-content">
+                                <div class="system-metric">
+                                    <span class="metric-label">Uptime:</span>
+                                    <span class="metric-value" id="serverUptime">--</span>
+                                </div>
+                                <div class="system-metric">
+                                    <span class="metric-label">Memory Usage:</span>
+                                    <span class="metric-value" id="memoryUsage">--</span>
+                                </div>
+                                <div class="system-metric">
+                                    <span class="metric-label">Version:</span>
+                                    <span class="metric-value" id="serverVersion">1.0.0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="system-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-database"></i> Database</h3>
+                                <span class="status-badge healthy" id="dbStatus">Connected</span>
+                            </div>
+                            <div class="card-content">
+                                <div class="system-metric">
+                                    <span class="metric-label">Total Users:</span>
+                                    <span class="metric-value" id="dbUsers">--</span>
+                                </div>
+                                <div class="system-metric">
+                                    <span class="metric-label">Total Workouts:</span>
+                                    <span class="metric-value" id="dbWorkouts">--</span>
+                                </div>
+                                <div class="system-metric">
+                                    <span class="metric-label">Storage Used:</span>
+                                    <span class="metric-value" id="storageUsed">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="logs-section">
+                        <div class="logs-header">
+                            <h3>System Logs</h3>
+                            <div class="log-controls">
+                                <select id="logLevel">
+                                    <option value="all">All Levels</option>
+                                    <option value="error">Errors</option>
+                                    <option value="warning">Warnings</option>
+                                    <option value="info">Info</option>
+                                </select>
+                                <button class="btn btn-secondary" onclick="clearLogs()">Clear Logs</button>
+                            </div>
+                        </div>
+                        <div class="logs-container" id="systemLogs">
+                            <div class="log-entry info">
+                                <span class="log-timestamp">2024-01-15 10:30:45</span>
+                                <span class="log-level">INFO</span>
+                                <span class="log-message">System initialized successfully</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="userModalTitle">User Details</h3>
+                <span class="close" onclick="closeModal('userModal')">&times;</span>
+            </div>
+            <div class="modal-body" id="userModalContent">
+                <!-- Dynamic content -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('userModal')">Close</button>
+                <button class="btn btn-primary" id="saveUserBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal">
+        <div class="modal-content small">
+            <div class="modal-header">
+                <h3 id="confirmTitle">Confirm Action</h3>
+                <span class="close" onclick="closeModal('confirmModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Cancel</button>
+                <button class="btn btn-danger" id="confirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>

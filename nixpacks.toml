@@ -6,11 +6,6 @@ cmds = [
     "pip install -r requirements.txt"
 ]
 
-[phases.build]
-cmds = [
-    "python manage.py collectstatic --noinput"
-]
-
 [phases.deploy]
 cmd = "bash railway_start.sh"xPkgs = ["python312", "nodejs-18_x"]
 
